@@ -24,3 +24,12 @@ Thumbs.db
 .vscode/
 .idea/
 *.egg-info/
+
+# Workspace application dependencies, secrets, and local database
+node_modules/
+backend/dist/
+backend/.env
+backend/.env.*
+!backend/.env.example
+.local/
+*.tsbuildinfo
