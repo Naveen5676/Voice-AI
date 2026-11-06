@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./validator/auth": "./src/validator/auth.validator.ts"
+    "./validator/auth": "./src/validator/auth.validator.ts",
+    "./validator/agent": "./src/validator/agent.validator.ts"
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc -b",
+    "test": "tsx --test tests/*.test.ts",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
@@ -26,6 +27,7 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "tsx": "^4.20.6",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

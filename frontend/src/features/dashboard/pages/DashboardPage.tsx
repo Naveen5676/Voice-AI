@@ -1,40 +1,50 @@
 import { useState } from 'react'
-import { Alert, Box, Button, Container, Stack, Typography } from '@mui/material'
-import { useNavigate } from 'react-router'
-import { useAppDispatch } from '../../../app/store'
-import { authApi, authErrorMessage, signOut } from '../../auth/api/auth-api'
-import { Brand } from '../../../components/Brand'
+import { Box, Button, Card, CardActionArea, CardActions, Chip, InputAdornment, Stack, TextField, Typography } from '@mui/material'
+import { Link } from 'react-router'
+import { StudioIcon } from '../../../components/StudioIcon'
+import { TemplateMark } from '../../agents/components/TemplateMark'
+import { WebCallDialog } from '../../agents/components/WebCallDialog'
+import { WorkspaceStatus } from '../../agents/components/WorkspaceStatus'
+import { findTemplate } from '../../agents/data/prompt-templates'
+import { CreateAgentDialog } from '../../agents/components/CreateAgentDialog'
+import { useAgentWorkspace } from '../../agents/hooks/useAgentWorkspace'
+import type { AgentDraft } from '../../agents/types'
 
 export function DashboardPage() {
-  const dispatch = useAppDispatch()
-  const navigate = useNavigate()
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { agents, ready, error, retry } = useAgentWorkspace()
+  const [search, setSearch] = useState('')
+  const [calling, setCalling] = useState<AgentDraft | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const filtered = agents.filter((agent) => agent.name.toLowerCase().includes(search.trim().toLowerCase()))
 
-  async function logout() {
-    setError(null)
-    setIsLoading(true)
-    try {
-      await signOut()
-      dispatch(authApi.util.resetApiState())
-      navigate('/login', { replace: true })
-    } catch (cause) {
-      setError(authErrorMessage(cause))
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  if (!ready) return <WorkspaceStatus error={error} retry={retry} />
 
-  return <Box sx={{ minHeight: '100svh' }}>
-    <Box component="header" sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
-      <Container maxWidth="lg"><Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 2.5 }}>
-        <Brand />
-        <Button variant="outlined" color="inherit" onClick={() => void logout()} loading={isLoading}>Log out</Button>
-      </Stack></Container>
-    </Box>
-    <Container component="main" maxWidth="lg" sx={{ py: 5 }}>
-      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-      <Typography component="h1" variant="h4">Dashboard</Typography>
-    </Container>
-  </Box>
+  return <>
+    {agents.length > 0 && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2.5} sx={{ mb: 4 }}>
+      <Box><Typography component="h1" variant="h4" sx={{ fontSize: { xs: 30, md: 34 } }}>Your agents</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>A little direction. A voice of your own.</Typography></Box>
+      <Button onClick={() => setCreateOpen(true)} variant="contained" startIcon={<StudioIcon name="plus" />}>Create agent</Button>
+    </Stack>}
+    {agents.length > 0 && <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2.5 }} spacing={2}>
+      <Stack direction="row" alignItems="center" spacing={1}><Typography variant="body2" fontWeight={600}>All agents</Typography><Chip label={agents.length} size="small" sx={{ height: 22, minWidth: 26, bgcolor: '#e9eade', fontSize: 11 }} /></Stack>
+      {agents.length > 0 && <TextField size="small" placeholder="Search agents" value={search} onChange={(event) => setSearch(event.target.value)} sx={{ maxWidth: 255 }} slotProps={{ htmlInput: { 'aria-label': 'Search agents' }, input: { startAdornment: <InputAdornment position="start"><StudioIcon name="search" sx={{ fontSize: 19 }} /></InputAdornment> } }} />}
+    </Stack>}
+    {agents.length === 0 ? <Box sx={{ minHeight: '65svh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', px: 3, py: 6, textAlign: 'center' }}>
+      <Box sx={{ width: 58, height: 58, borderRadius: 3, bgcolor: '#e9ecdf', display: 'grid', placeItems: 'center', mx: 'auto', mb: 2.5 }}><StudioIcon name="spark" sx={{ fontSize: 26, color: '#687457' }} /></Box>
+      <Button onClick={() => setCreateOpen(true)} variant="contained" startIcon={<StudioIcon name="plus" />}>Create your first agent</Button>
+    </Box> : filtered.length === 0 ? <Box sx={{ py: 7, textAlign: 'center', border: 1, borderColor: 'divider', borderRadius: 3 }}><Typography fontWeight={600}>No matching agents</Typography><Button onClick={() => setSearch('')} sx={{ mt: 1 }}>Clear search</Button></Box> : <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 2.5 }}>
+      {filtered.map((agent) => <Card key={agent.id} variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 2px 5px #22272003', display: 'flex', flexDirection: 'column' }}>
+        <CardActionArea component={Link} to={`/agents/${agent.id}`} sx={{ p: 3, flexGrow: 1, alignItems: 'flex-start' }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center"><TemplateMark templateId={agent.templateId} /><StudioIcon name="arrow" sx={{ fontSize: 18, color: 'text.secondary' }} /></Stack>
+          <Typography component="h2" fontSize={18} fontWeight={600} sx={{ mt: 2.5, overflowWrap: 'anywhere' }}>{agent.name}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{findTemplate(agent.templateId)?.title ?? 'Custom prompt'}</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>Edited {new Date(agent.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · Saved in this browser</Typography>
+        </CardActionArea>
+        <CardActions sx={{ borderTop: 1, borderColor: 'divider', p: 1.5, px: 2.5 }}><Button size="small" color="inherit" startIcon={<StudioIcon name="mic" sx={{ fontSize: 17 }} />} onClick={() => setCalling(agent)}>Web Call</Button></CardActions>
+      </Card>)}
+    </Box>}
+
+    {agents.length > 0 && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 3 }}>UI preview · Agents are saved only in this browser. Voice calling will be connected in the next step.</Typography>}
+    <CreateAgentDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+    <WebCallDialog open={!!calling} agentName={calling?.name ?? ''} onClose={() => setCalling(null)} />
+  </>
 }

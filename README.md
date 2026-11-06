@@ -7,8 +7,18 @@ React + Material UI frontend, Express + Better Auth backend, and a separate Pyth
 - Email/password signup automatically signs in and opens `/dashboard`.
 - Login opens the same dashboard; logout revokes the server session.
 - Sessions last seven days and renew during active use.
-- The dashboard is intentionally empty apart from its heading and logout.
-- Google login, email verification, password recovery, and voice integration are deferred.
+- The protected dashboard lists browser-saved agent drafts and offers three prompt starting points.
+- Google login, email verification, password recovery, agent account APIs, and voice integration are deferred.
+
+## Agent UI preview
+
+After signing in, use `/dashboard` to create an agent or choose General assistant, Customer support, or Receptionist. `/agents/new` opens a new editor; `/agents/:agentId` edits a saved draft. Names and prompts are validated using `backend/src/validator/agent.validator.ts`, reused by the frontend's Zod resolver.
+
+The agent UI is a frontend milestone: drafts are stored under an account-specific key in this browser's localStorage. They are not synced to PostgreSQL, shared across devices, or sent to the Python worker. A local repository adapter isolates this temporary persistence so agent APIs can replace it in the next phase. Authentication still uses the existing backend and PostgreSQL.
+
+The editor has explicit save, unsaved-change navigation warnings, and confirmation before replacing a prompt with a template. Web Call opens an informational dialog; it does not request microphone access or start a voice session. Save new or edited agents before opening that dialog.
+
+Run `npm run test:ui` for draft persistence, account separation, corrupted storage, input validation, and preset checks. Real agent ownership checks and voice sessions will be added with their backend APIs.
 
 ## Local development
 
@@ -57,7 +67,8 @@ frontend/src/
   app/           Redux store and Material UI theme
   components/    Shared brand and session route boundary
   features/auth/ Reusable controls, pages, auth client calls
-  features/dashboard/ Empty dashboard
+  features/agents/ Agent editor, Redux drafts, presets, browser storage adapter
+  features/dashboard/ Agent list and template starting points
   lib/           Better Auth client
 agent/           Existing Python LiveKit service
 scripts/         Optional isolated database setup
@@ -79,6 +90,7 @@ Auth writes require a trusted origin. Signup and login each allow five attempts 
 npm run typecheck
 npm run build
 npm test
+npm run test:ui
 ```
 
 Integration tests use `TEST_DATABASE_URL` pointing to a PostgreSQL role allowed to create and drop databases. They create a uniquely named database, migrate it, exercise real HTTP requests, and drop only that database afterward. Without `TEST_DATABASE_URL`, the integration test is explicitly skipped and environment validation still runs.
