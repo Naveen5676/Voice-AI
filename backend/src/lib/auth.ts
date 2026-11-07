@@ -1,13 +1,14 @@
 import { betterAuth } from 'better-auth'
 import type { BetterAuthOptions } from 'better-auth'
-import type { Pool } from 'pg'
+import { prismaAdapter } from 'better-auth/adapters/prisma'
+import type { Database } from '../db/prisma'
 import type { Environment } from '../config/env.js'
 import { validateAuth } from '../middleware/validate-auth.js'
 
-export function authOptions(database: Pool, env: Environment) {
+export function authOptions(database: Database, env: Environment) {
   return {
     appName: 'Voice Studio',
-    database,
+    database: prismaAdapter(database, { provider: 'postgresql', transaction: true }),
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     basePath: '/api/auth',
@@ -35,7 +36,7 @@ export function authOptions(database: Pool, env: Environment) {
   } satisfies BetterAuthOptions
 }
 
-export function createAuth(database: Pool, env: Environment) {
+export function createAuth(database: Database, env: Environment) {
   return betterAuth(authOptions(database, env))
 }
 

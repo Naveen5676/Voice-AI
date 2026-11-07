@@ -8,7 +8,7 @@
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "verbatimModuleSyntax": true,
+    "verbatimModuleSyntax": false,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "sourceMap": true

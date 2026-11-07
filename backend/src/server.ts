@@ -1,24 +1,34 @@
 import { readEnvironment } from './config/env.js'
-import { createPool } from './db/pool.js'
+import { createPrismaClient } from './db/prisma'
 import { createAuth } from './lib/auth.js'
 import { createApp } from './app.js'
 
-const env = readEnvironment()
-const pool = createPool(env.DATABASE_URL)
-pool.on('error', () => console.error('An idle database connection failed.'))
-try {
-  await pool.query('SELECT 1')
-  const server = createApp(createAuth(pool, env), env).listen(env.PORT, '0.0.0.0', () => {
-    console.log(`API listening on port ${env.PORT}`)
-  })
-  const shutdown = () => {
-    server.close(() => { void pool.end().then(() => process.exit(0)) })
-    setTimeout(() => process.exit(1), 10_000).unref()
+async function main() {
+  const env = readEnvironment()
+  const prisma = createPrismaClient(env.DATABASE_URL)
+  try {
+    await prisma.$connect()
+    const server = createApp(createAuth(prisma, env), env, prisma).listen(env.PORT, '0.0.0.0', () => {
+      console.log(`API listening on port ${env.PORT}`)
+    })
+    const shutdown = () => {
+      server.close(() => { void prisma.$disconnect().then(() => process.exit(0)) })
+      setTimeout(() => process.exit(1), 10_000).unref()
+    }
+    server.on('error', () => {
+      console.error('Server could not listen. Check that its port is available.')
+      void prisma.$disconnect().finally(() => { process.exitCode = 1 })
+    })
+    process.on('SIGTERM', shutdown)
+    process.on('SIGINT', shutdown)
+  } catch {
+    console.error('Server could not start. Check PostgreSQL, backend/.env, and npm run db:migrate.')
+    await prisma.$disconnect()
+    process.exitCode = 1
   }
-  process.on('SIGTERM', shutdown)
-  process.on('SIGINT', shutdown)
-} catch {
-  console.error('Server could not start. Check PostgreSQL, backend/.env, and npm run db:migrate.')
-  await pool.end()
-  process.exitCode = 1
 }
+
+void main().catch(() => {
+  console.error('Server configuration is invalid. Check backend/.env.')
+  process.exitCode = 1
+})

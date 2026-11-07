@@ -1,14 +1,18 @@
 import { existsSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 import express from 'express'
 import helmet from 'helmet'
 import { toNodeHandler } from 'better-auth/node'
 import type { Environment } from './config/env.js'
 import type { Auth } from './lib/auth.js'
+import type { Database } from './db/prisma'
 import { accountRoutes } from './routes/account.js'
 import { errorHandler } from './middleware/error-handler.js'
+import { agentRoutes } from './routes/agents.js'
+import { createPrismaService } from './services/prisma-service'
+import { createAgentService } from './services/agent.service.js'
 
-export function createApp(auth: Auth, env: Environment) {
+export function createApp(auth: Auth, env: Environment, database: Database) {
   const app = express()
   app.disable('x-powered-by')
   app.set('trust proxy', env.TRUST_PROXY_HOPS)
@@ -22,12 +26,14 @@ export function createApp(auth: Auth, env: Environment) {
   })
   // Better Auth must read the raw request stream before any JSON body parser.
   app.all('/api/auth/*splat', toNodeHandler(auth))
-  app.use(express.json({ limit: '16kb' }))
+  // A 12,000-character prompt can exceed 16 KB when JSON escaped or Unicode.
+  app.use(express.json({ limit: '96kb' }))
   app.use('/api', accountRoutes(auth))
+  app.use('/api', agentRoutes(auth, createAgentService(createPrismaService(database)), env.BETTER_AUTH_URL))
   app.use('/api', (_request, response) => response.status(404).json({ message: 'API endpoint not found.' }))
 
   if (env.NODE_ENV === 'production') {
-    const frontend = fileURLToPath(new URL('../../frontend/dist/', import.meta.url))
+    const frontend = resolve(__dirname, '../../frontend/dist')
     if (!existsSync(`${frontend}/index.html`)) throw new Error('Frontend build is missing. Run npm run build first.')
     app.use(express.static(frontend, { index: false }))
     app.get('/{*path}', (_request, response) => {

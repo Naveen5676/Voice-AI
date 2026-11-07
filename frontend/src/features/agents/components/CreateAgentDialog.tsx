@@ -1,11 +1,11 @@
 import { Box, Card, CardActionArea, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material'
 import { Link } from 'react-router'
 import { StudioIcon } from '../../../components/StudioIcon'
-import { promptTemplates } from '../data/prompt-templates'
+import { customAgentTemplate, promptTemplates } from '../data/prompt-templates'
 import { TemplateMark } from './TemplateMark'
 
 const choices = [
-  { id: 'custom' as const, title: 'Custom agent', description: 'Start with a blank prompt and design your own agent.' },
+  customAgentTemplate,
   ...promptTemplates,
 ]
 

@@ -2,11 +2,10 @@ import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { once } from 'node:events'
 import test from 'node:test'
-import { getMigrations } from 'better-auth/db/migration'
 import { createApp } from '../src/app.js'
 import { readEnvironment } from '../src/config/env.js'
-import { createPool } from '../src/db/pool.js'
-import { authOptions, createAuth } from '../src/lib/auth.js'
+import { createAuth } from '../src/lib/auth.js'
+import { createTestDatabase } from './helpers/database.js'
 
 test('environment validation does not expose secrets', () => {
   assert.throws(() => readEnvironment({ DATABASE_URL: 'private-value', BETTER_AUTH_SECRET: 'secret' }), (error: unknown) => {
@@ -20,24 +19,11 @@ test('environment validation does not expose secrets', () => {
 
 // Creates and drops a separate database; never runs migrations against app data.
 test('email/password authentication over HTTP with PostgreSQL', { skip: !process.env.TEST_DATABASE_URL }, async (t) => {
-  const databaseName = `voice_auth_test_${randomBytes(8).toString('hex')}`
-  const admin = createPool(process.env.TEST_DATABASE_URL!)
-  await admin.query(`CREATE DATABASE "${databaseName}"`)
-  const url = new URL(process.env.TEST_DATABASE_URL!)
-  url.pathname = `/${databaseName}`
-  const pool = createPool(url.toString())
-  const env = readEnvironment({
-    NODE_ENV: 'test', DATABASE_URL: url.toString(),
-    BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),
-    BETTER_AUTH_URL: 'http://localhost:5173',
-  })
+  const { pool, prisma, env, cleanup } = await createTestDatabase('auth')
   let server: ReturnType<ReturnType<typeof createApp>['listen']> | undefined
   try {
-    await (await getMigrations(authOptions(pool, env))).runMigrations()
-    // Re-running migration is safe and should not recreate existing tables.
-    await (await getMigrations(authOptions(pool, env))).runMigrations()
-    const auth = createAuth(pool, env)
-    server = createApp(auth, env).listen(0, '127.0.0.1')
+    const auth = createAuth(prisma, env)
+    server = createApp(auth, env, prisma).listen(0, '127.0.0.1')
     await once(server, 'listening')
     const address = server.address()
     assert.ok(address && typeof address === 'object')
@@ -104,12 +90,14 @@ test('email/password authentication over HTTP with PostgreSQL', { skip: !process
       cookie = response.headers.getSetCookie().map((value) => value.split(';')[0]).join('; ')
       assert.equal((await call('/api/me', undefined, { cookie })).status, 200)
       await pool.query('UPDATE session SET "expiresAt" = $1', [new Date(Date.now() - 60_000)])
+      const expiration = await prisma.session.findFirst({ select: { expiresAt: true } })
+      assert.ok(expiration && expiration.expiresAt.getTime() < Date.now())
       assert.equal((await call('/api/me', undefined, { cookie })).status, 401)
     })
     await t.test('production serves SPA routes and uses Secure session cookies', async () => {
       const production = { ...env, NODE_ENV: 'production' as const, BETTER_AUTH_URL: 'https://voice.example' }
       await pool.query('DELETE FROM "rateLimit"')
-      const productionServer = createApp(createAuth(pool, production), production).listen(0, '127.0.0.1')
+      const productionServer = createApp(createAuth(prisma, production), production, prisma).listen(0, '127.0.0.1')
       await once(productionServer, 'listening')
       const productionAddress = productionServer.address()
       assert.ok(productionAddress && typeof productionAddress === 'object')
@@ -145,8 +133,6 @@ test('email/password authentication over HTTP with PostgreSQL', { skip: !process
     })
   } finally {
     if (server) await new Promise<void>((resolve) => server!.close(() => resolve()))
-    await pool.end()
-    await admin.query(`DROP DATABASE "${databaseName}" WITH (FORCE)`)
-    await admin.end()
+    await cleanup()
   }
 })
