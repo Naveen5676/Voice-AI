@@ -8,14 +8,28 @@ async function main() {
   const prisma = createPrismaClient(env.DATABASE_URL)
   try {
     await prisma.$connect()
-    const server = createApp(createAuth(prisma, env), env, prisma).listen(env.PORT, '0.0.0.0', () => {
+    const app = createApp(createAuth(prisma, env), env, prisma)
+    let reconciling = false
+    const reconcile = async () => {
+      if (reconciling) return
+      reconciling = true
+      try { await app.locals.webCalls.reconcile() }
+      catch { console.error('Voice call reconciliation failed; it will be retried.') }
+      finally { reconciling = false }
+    }
+    void reconcile()
+    const reconciliation = setInterval(() => { void reconcile() }, 15_000)
+    reconciliation.unref()
+    const server = app.listen(env.PORT, '0.0.0.0', () => {
       console.log(`API listening on port ${env.PORT}`)
     })
     const shutdown = () => {
+      clearInterval(reconciliation)
       server.close(() => { void prisma.$disconnect().then(() => process.exit(0)) })
       setTimeout(() => process.exit(1), 10_000).unref()
     }
     server.on('error', () => {
+      clearInterval(reconciliation)
       console.error('Server could not listen. Check that its port is available.')
       void prisma.$disconnect().finally(() => { process.exitCode = 1 })
     })

@@ -9,18 +9,18 @@ The backend follows OpenMic's TypeScript-to-CommonJS build pattern: `npm start` 
 - Email/password signup automatically signs in and opens `/dashboard`.
 - Login opens the same dashboard; logout revokes the server session.
 - Sessions last seven days and renew during active use.
-- The protected dashboard lists browser-saved agent drafts and offers three prompt starting points.
-- Google login, email verification, password recovery, and voice integration are deferred.
+- The protected dashboard lists PostgreSQL-backed agents and offers prompt starting points.
+- Google login, email verification, password recovery, and telephony are deferred.
 
-## Agent UI preview
+## Agents and browser calls
 
-After signing in, use `/dashboard` to create an agent or choose General assistant, Customer support, or Receptionist. `/agents/new` opens a new editor; `/agents/:agentId` edits a saved draft. Names and prompts are validated using `backend/src/validator/agent.validator.ts`, reused by the frontend's Zod resolver.
+After signing in, use `/dashboard` to create an agent or choose General assistant, Customer support, or Receptionist. `/agents/new` opens a new editor; `/agents/:agentId` edits a saved agent. Names and prompts are validated using `backend/src/validator/agent.validator.ts`, reused by the frontend's Zod resolver.
 
-The agent UI still stores drafts under an account-specific key in this browser's localStorage. The five PostgreSQL-backed agent APIs are now available, but the UI has not been connected to them yet. Existing browser drafts are not automatically uploaded, shared across devices, or sent to the Python worker. A local repository adapter isolates this temporary persistence for the next integration step. Authentication uses the existing backend and PostgreSQL.
+Agents now load and save through the protected PostgreSQL-backed APIs. The editor awaits explicit saves and keeps unsaved edits only in form state. Refreshing or leaving discards unsaved changes without confirmation.
 
-The editor has explicit save, unsaved-change navigation warnings, and confirmation before replacing a prompt with a template. Web Call opens an informational dialog; it does not request microphone access or start a voice session. Save new or edited agents before opening that dialog.
+Web Call uses the selected agent's saved instructions. The browser joins LiveKit with a room-scoped token; Express dispatches the separate Python worker, which fetches a server-owned prompt snapshot. The dialog provides distinct user/agent transcript bubbles, a microphone selector, explicit microphone permission, connection status, mute, end-call, and error handling. Save new or edited agents before starting a call.
 
-Run `npm run test:ui` for browser draft persistence, account separation, corrupted storage, input validation, and preset checks. Backend integration tests independently verify database persistence and agent ownership. Voice sessions will be added later. Presets now have a single source in `backend/src/config/agent-templates.ts`, shared with the current UI preview and served by the templates endpoint.
+See [browser call setup, endpoints, and verification](docs/web-calls.md). Authentication and agent management work without voice credentials. For calls, configure the same LiveKit project, worker dispatch name, and service secret in the backend and worker, then run `npm run dev:agent` from the root in a separate terminal. This loads the worker environment before the LiveKit CLI checks credentials and targets the isolated `voice-studio-local` deployment.
 
 ## Local development
 
@@ -70,7 +70,7 @@ frontend/src/
   app/           Redux store and Material UI theme
   components/    Shared brand and session route boundary
   features/auth/ Reusable controls, pages, auth client calls
-  features/agents/ Agent editor, Redux drafts, presets, browser storage adapter
+  features/agents/ Agent editor, account-scoped API cache, voice controls
   features/dashboard/ Agent list and template starting points
   lib/           Better Auth client
 agent/           Existing Python LiveKit service
@@ -90,6 +90,9 @@ Better Auth owns password hashing, cookies, and session persistence. React Hook 
 - `GET /api/agents`: list the signed-in user's agents, newest update first.
 - `GET /api/agents/:id`: read one owned agent.
 - `PATCH /api/agents/:id`: update an owned agent's name, prompt, or template choice.
+- `POST /api/agents/:id/web-calls`: start an owned agent's browser call.
+- `GET /api/web-calls/:callId`: read owned call status.
+- `POST /api/web-calls/:callId/end`: end an owned call.
 
 See [the agent API reference](docs/agent-api.md) for request bodies, response shapes, and status codes. All five agent endpoints require a valid Better Auth session. Agent writes also require an `Origin` header matching `BETTER_AUTH_URL`. Ownership always comes from the session, and unknown ownership fields in request bodies are rejected.
 
@@ -125,4 +128,4 @@ Use one Node Web Service connected to this monorepo, with **Root Directory left 
 
 Run `npm run db:migrate` against the target database before starting the app, and whenever the database schema changes. It runs Prisma's `migrate deploy`; both authentication and agents are defined in the same Prisma schema, with migration history in `_prisma_migrations`. The previous `app_migrations` table is retained as historical data. The existing local database has already been baselined without recreating tables. Other databases created with the old migration runner need the one-time baseline described in [database setup](docs/backend-structure.md) before deploying Prisma migrations. On a free hosting plan without a pre-deploy command, apply migrations from your local terminal using the target database configuration. Do not use the local setup helper for hosted databases.
 
-Express serves `frontend/dist` alongside the APIs in production, including direct visits to `/login`, `/signup`, and `/dashboard`. Unknown `/api` routes stay JSON 404s. Production sessions use Secure, HttpOnly cookies. The `agent/` service is deployed separately; no Python deployment is triggered by Node build commands. This repository has not been published or deployed by this implementation.
+Express serves `frontend/dist` alongside the APIs in production, including direct visits to `/login`, `/signup`, and `/dashboard`. Unknown `/api` routes stay JSON 404s. Production sessions use Secure, HttpOnly cookies. The `agent/` service is deployed separately; no Python deployment is triggered by Node build commands. Production voice setup is described in [browser calls](docs/web-calls.md). This repository has not been published or deployed by this implementation.

@@ -3,7 +3,7 @@ import { Alert, Avatar, Box, Button, Chip, Divider, Stack, Typography } from '@m
 import { Link, Outlet, useNavigate } from 'react-router'
 import { useAppDispatch } from '../app/store'
 import { authApi, authErrorMessage, signOut, useGetSessionQuery } from '../features/auth/api/auth-api'
-import { workspaceCleared } from '../features/agents/store/agents-slice'
+import { agentsApi } from '../features/agents/api/agents-api'
 import { Brand } from './Brand'
 import { StudioIcon } from './StudioIcon'
 
@@ -19,7 +19,7 @@ export function WorkspaceLayout() {
     setIsLoading(true)
     try {
       await signOut()
-      dispatch(workspaceCleared())
+      dispatch(agentsApi.util.resetApiState())
       dispatch(authApi.util.resetApiState())
       navigate('/login', { replace: true })
     } catch (cause) {
@@ -52,7 +52,7 @@ export function WorkspaceLayout() {
         <Box sx={{ display: { xs: 'block', md: 'none' } }}><Brand /></Box>
         <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' } }}>Your workspace <Box component="span" sx={{ color: '#b7bbae', mx: 1.5 }}>/</Box><Box component="span" sx={{ color: 'text.primary', fontWeight: 500 }}>Agents</Box></Typography>
         <Stack direction="row" alignItems="center" spacing={2}>
-          <Chip label="UI preview" variant="outlined" size="small" sx={{ display: { xs: 'none', sm: 'inline-flex' }, fontSize: 11, borderColor: 'divider', bgcolor: '#fafaf7' }} />
+          <Chip label="Personal workspace" variant="outlined" size="small" sx={{ display: { xs: 'none', sm: 'inline-flex' }, fontSize: 11, borderColor: 'divider', bgcolor: '#fafaf7' }} />
           <Box sx={{ display: { md: 'none' } }}>{logoutButton}</Box>
         </Stack>
       </Stack>

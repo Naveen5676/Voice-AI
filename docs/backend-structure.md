@@ -58,6 +58,8 @@ npm run db:migrate
 
 ## Future schema changes
 
+Phase 3 adds `VoiceCall` and `VoiceCallEvent` through the additive `0002_voice_calls` migration. These store owned call configuration snapshots and deduplicated lifecycle events, separately from authentication sessions. Call starts lock the owning user row inside a short transaction to enforce per-account concurrency across backend processes. LiveKit network operations run outside that transaction. See [browser calls](web-calls.md) for the service boundary and cleanup policy.
+
 Edit `schema.prisma`, then create a development migration with `npm run db:migrate:dev -w backend -- --name <change-name>`. Review and commit the migration. Deploy it using `npm run db:migrate` from the repository root. Regenerate the client with `npm run db:generate -w backend` when changing models; the normal backend build also regenerates it.
 
 References: [Prisma CommonJS generator](https://www.prisma.io/docs/orm/v7/prisma-schema/overview/generators), [Better Auth Prisma adapter](https://better-auth.com/docs/adapters/prisma), [Prisma baselining](https://www.prisma.io/docs/orm/v7/prisma-migrate/workflows/baselining), and [PrismaPg timezone issue](https://github.com/prisma/orm/issues/28629).

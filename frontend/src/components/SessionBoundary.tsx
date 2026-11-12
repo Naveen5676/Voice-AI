@@ -18,5 +18,5 @@ export function SessionBoundary({ authenticated }: { authenticated: boolean }) {
   )
   if (authenticated && !user) return <Navigate to="/login" replace />
   if (!authenticated && user) return <Navigate to="/dashboard" replace />
-  return <Outlet />
+  return <Outlet key={user?.id ?? 'anonymous'} />
 }

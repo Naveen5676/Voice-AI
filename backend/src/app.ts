@@ -11,9 +11,15 @@ import { errorHandler } from './middleware/error-handler.js'
 import { agentRoutes } from './routes/agents.js'
 import { createPrismaService } from './services/prisma-service'
 import { createAgentService } from './services/agent.service.js'
+import { createLivekitService, type VoiceTransport } from './services/livekit.service.js'
+import { createWebCallService } from './services/web-call.service.js'
+import { webCallRoutes } from './routes/web-calls.js'
+import { internalWebCallRoutes } from './routes/internal-web-calls.js'
 
-export function createApp(auth: Auth, env: Environment, database: Database) {
+export function createApp(auth: Auth, env: Environment, database: Database, voiceTransport?: VoiceTransport) {
   const app = express()
+  const calls = createWebCallService(database, env, voiceTransport ?? createLivekitService(env))
+  app.locals.webCalls = calls
   app.disable('x-powered-by')
   app.set('trust proxy', env.TRUST_PROXY_HOPS)
   app.use(helmet({ strictTransportSecurity: env.NODE_ENV === 'production' ? undefined : false }))
@@ -30,6 +36,8 @@ export function createApp(auth: Auth, env: Environment, database: Database) {
   app.use(express.json({ limit: '96kb' }))
   app.use('/api', accountRoutes(auth))
   app.use('/api', agentRoutes(auth, createAgentService(createPrismaService(database)), env.BETTER_AUTH_URL))
+  app.use('/api', webCallRoutes(auth, calls, env.BETTER_AUTH_URL))
+  app.use('/api/internal/web-calls', internalWebCallRoutes(calls, env.AGENT_SERVICE_SECRET))
   app.use('/api', (_request, response) => response.status(404).json({ message: 'API endpoint not found.' }))
 
   if (env.NODE_ENV === 'production') {

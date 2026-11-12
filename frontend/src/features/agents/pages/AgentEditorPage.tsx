@@ -1,38 +1,39 @@
-import { useCallback, useRef, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Alert, Box, Button, Card, CardActionArea, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Paper, Snackbar, Stack, TextField, Typography } from '@mui/material'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link, useBeforeUnload, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { agentFormSchema } from 'backend/validator/agent'
 import type { AgentFormValues } from 'backend/validator/agent'
 import { StudioIcon } from '../../../components/StudioIcon'
 import { TemplateMark } from '../components/TemplateMark'
 import { WorkspaceStatus } from '../components/WorkspaceStatus'
-import { WebCallDialog } from '../components/WebCallDialog'
-import { promptTemplates, findTemplate } from '../data/prompt-templates'
 import type { PromptTemplate } from '../data/prompt-templates'
 import { useAgentWorkspace } from '../hooks/useAgentWorkspace'
-import type { AgentDraft } from '../types'
+import type { SavedAgent } from '../types'
+
+const WebCallDialog = lazy(() => import('../components/WebCallDialog').then((module) => ({ default: module.WebCallDialog })))
 
 export function AgentEditorPage() {
   const { agentId } = useParams()
   const [searchParams] = useSearchParams()
-  const workspace = useAgentWorkspace()
+  const workspace = useAgentWorkspace(agentId)
+  if (workspace.notFound) return <Box sx={{ py: 8, textAlign: 'center' }}><Typography variant="h5">Agent not found</Typography><Typography color="text.secondary">This agent is unavailable in your account.</Typography><Button component={Link} to="/dashboard">Back to agents</Button></Box>
   if (!workspace.ready) return <WorkspaceStatus error={workspace.error} retry={workspace.retry} />
-  const existing = workspace.agents.find((agent) => agent.id === agentId)
-  if (agentId && !existing) return <Box sx={{ py: 8, textAlign: 'center' }}><Typography variant="h5">Agent not found</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>This agent isn’t saved in your current browser workspace.</Typography><Button component={Link} to="/dashboard" sx={{ mt: 3 }} startIcon={<StudioIcon name="back" />}>Back to agents</Button></Box>
-  return <AgentEditor key={agentId ?? `new-${searchParams.get('template')}`} existing={existing} initialTemplate={findTemplate(searchParams.get('template'))} onSave={workspace.saveAgent} />
+  const existing = workspace.agent
+  const initialTemplate = workspace.templates.find((item) => item.id === searchParams.get('template'))
+  return <AgentEditor key={`${workspace.ownerId}-${agentId ?? `new-${initialTemplate?.id}`}`} existing={existing} initialTemplate={initialTemplate} templates={workspace.templates} onSave={workspace.saveAgent} />
 }
 
 type EditorProps = {
-  existing?: AgentDraft
+  existing?: SavedAgent
+  templates: PromptTemplate[]
   initialTemplate?: PromptTemplate
-  onSave: (values: AgentFormValues, id?: string) => AgentDraft
+  onSave: (values: AgentFormValues, id?: string) => Promise<SavedAgent>
 }
 
-function AgentEditor({ existing, initialTemplate, onSave }: EditorProps) {
+function AgentEditor({ existing, initialTemplate, templates, onSave }: EditorProps) {
   const navigate = useNavigate()
-  const allowNavigation = useRef(false)
   const [error, setError] = useState<string | null>(null)
   const [savedNotice, setSavedNotice] = useState(false)
   const [callOpen, setCallOpen] = useState(false)
@@ -43,10 +44,6 @@ function AgentEditor({ existing, initialTemplate, onSave }: EditorProps) {
       : { name: initialTemplate?.title ?? '', prompt: initialTemplate?.prompt ?? '', templateId: initialTemplate?.id ?? 'custom' },
   })
   const [name, prompt, templateId] = useWatch({ control, name: ['name', 'prompt', 'templateId'] })
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => isDirty && !allowNavigation.current && currentLocation.pathname !== nextLocation.pathname)
-  useBeforeUnload(useCallback((event) => {
-    if (isDirty && !allowNavigation.current) { event.preventDefault(); event.returnValue = '' }
-  }, [isDirty]))
 
   function applyTemplate(template: PromptTemplate | 'custom') {
     const custom = template === 'custom'
@@ -61,13 +58,12 @@ function AgentEditor({ existing, initialTemplate, onSave }: EditorProps) {
     else applyTemplate(template)
   }
 
-  function save(values: AgentFormValues) {
+  async function save(values: AgentFormValues) {
     setError(null)
     try {
-      const agent = onSave(values, existing?.id)
+      const agent = await onSave(values, existing?.id)
       reset({ name: agent.name, prompt: agent.prompt, templateId: agent.templateId })
       if (!existing) {
-        allowNavigation.current = true
         navigate(`/agents/${agent.id}`, { replace: true })
       } else setSavedNotice(true)
     } catch (cause) {
@@ -81,7 +77,7 @@ function AgentEditor({ existing, initialTemplate, onSave }: EditorProps) {
       <Box sx={{ minWidth: 0 }}>
         <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
           <Typography component="h1" variant="h4" sx={{ fontSize: 30, overflowWrap: 'anywhere' }}>{existing ? name || 'Untitled agent' : 'Create an agent'}</Typography>
-          <Chip size="small" variant="outlined" label={isDirty ? 'Unsaved changes' : existing ? 'Saved in this browser' : 'New agent'} sx={{ height: 23, fontSize: 10, bgcolor: isDirty ? '#fcf4e5' : '#f0f2e9', borderColor: isDirty ? '#e9d5ad' : '#dce1d1', color: isDirty ? '#896424' : '#5a694a' }} />
+          <Chip size="small" variant="outlined" label={isDirty ? 'Unsaved changes' : existing ? 'Saved to your account' : 'New agent'} sx={{ height: 23, fontSize: 10, bgcolor: isDirty ? '#fcf4e5' : '#f0f2e9', borderColor: isDirty ? '#e9d5ad' : '#dce1d1', color: isDirty ? '#896424' : '#5a694a' }} />
         </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Give it a purpose. Make it sound like you.</Typography>
       </Box>
@@ -90,7 +86,7 @@ function AgentEditor({ existing, initialTemplate, onSave }: EditorProps) {
     {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 290px' }, gap: 3, alignItems: 'start' }}>
-      <Box component="form" id="agent-form" noValidate onSubmit={handleSubmit(save)}>
+      <Box component="form" id="agent-form" noValidate onSubmit={(event) => { void handleSubmit(save)(event) }}>
         <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2.5, sm: 3.5 }, mb: 3 }}>
           <Typography component="h2" fontSize={16} fontWeight={600}>Agent identity</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 3 }}>A name you’ll recognize in your workspace.</Typography>
@@ -113,7 +109,7 @@ function AgentEditor({ existing, initialTemplate, onSave }: EditorProps) {
         <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
           <Typography component="h2" fontSize={15} fontWeight={600}>Starting points</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, mb: 2.5, lineHeight: 1.7 }}>A little structure to get you going. Every word is yours to change.</Typography>
-          <Stack spacing={1.25}>{promptTemplates.map((template) => <Card key={template.id} variant="outlined" sx={{ borderColor: templateId === template.id ? '#c5cfb5' : 'divider', bgcolor: templateId === template.id ? '#f3f6ed' : 'white', borderRadius: 2 }}>
+          <Stack spacing={1.25}>{templates.filter((item) => item.id !== 'custom').map((template) => <Card key={template.id} variant="outlined" sx={{ borderColor: templateId === template.id ? '#c5cfb5' : 'divider', bgcolor: templateId === template.id ? '#f3f6ed' : 'white', borderRadius: 2 }}>
             <CardActionArea onClick={() => chooseTemplate(template)} sx={{ p: 1.5 }} aria-label={`Use ${template.title} template`}>
               <Stack direction="row" alignItems="center" spacing={1.25}><TemplateMark templateId={template.id} size={32} /><Typography variant="body2" fontWeight={500} sx={{ flex: 1 }}>{template.title}</Typography>{templateId === template.id && <StudioIcon name="check" sx={{ fontSize: 16, color: '#66794f' }} />}</Stack>
             </CardActionArea>
@@ -125,23 +121,18 @@ function AgentEditor({ existing, initialTemplate, onSave }: EditorProps) {
           <Typography component="h2" fontSize={16} fontWeight={600}>Hear it in action.</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.75, mt: 1, mb: 2.5 }}>Try a browser conversation with your agent’s saved instructions.</Typography>
           <Button variant="outlined" color="inherit" startIcon={<StudioIcon name="mic" />} disabled={!existing || isDirty} fullWidth onClick={() => setCallOpen(true)} sx={{ bgcolor: 'white', borderColor: '#c9cfbd' }}>Web Call</Button>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.6, mt: 1.5 }}>{!existing || isDirty ? 'Save your agent before opening Web Call.' : 'UI preview · Voice calling isn’t connected yet.'}</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.6, mt: 1.5 }}>{!existing || isDirty ? 'Save your agent before opening Web Call.' : 'Start a conversation using your saved instructions.'}</Typography>
         </Paper>
-        <Box sx={{ px: 0.5 }}><Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.8 }}>Saved agents stay in this browser for now. They aren’t synced to your account yet.</Typography></Box>
+        <Box sx={{ px: 0.5 }}><Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.8 }}>Agents sync to your account. Each call uses the instructions saved when it starts.</Typography></Box>
       </Stack>
     </Box>
 
-    <WebCallDialog agentName={existing?.name ?? name} open={callOpen} onClose={() => setCallOpen(false)} />
+    {callOpen && <Suspense fallback={<Typography role="status">Loading voice controls?</Typography>}><WebCallDialog agentId={existing?.id ?? ''} agentName={existing?.name ?? name} open onClose={() => setCallOpen(false)} /></Suspense>}
     <Dialog open={!!pendingTemplate} onClose={() => setPendingTemplate(null)} maxWidth="xs" fullWidth aria-labelledby="replace-prompt-title">
       <DialogTitle id="replace-prompt-title">Replace this prompt?</DialogTitle>
       <DialogContent><DialogContentText>The selected starting point will replace the text in your prompt editor. Your saved version stays unchanged until you save.</DialogContentText></DialogContent>
       <DialogActions sx={{ p: 2.5 }}><Button color="inherit" onClick={() => setPendingTemplate(null)}>Keep my prompt</Button><Button variant="contained" onClick={() => pendingTemplate && applyTemplate(pendingTemplate)}>Replace prompt</Button></DialogActions>
     </Dialog>
-    <Dialog open={blocker.state === 'blocked'} onClose={() => blocker.state === 'blocked' && blocker.reset()} maxWidth="xs" fullWidth aria-labelledby="unsaved-title">
-      <DialogTitle id="unsaved-title">Leave your changes behind?</DialogTitle>
-      <DialogContent><DialogContentText>Your latest edits haven’t been saved. Stay here to keep working, or leave without saving.</DialogContentText></DialogContent>
-      <DialogActions sx={{ p: 2.5 }}><Button color="inherit" onClick={() => blocker.state === 'blocked' && blocker.reset()}>Keep editing</Button><Button variant="contained" onClick={() => blocker.state === 'blocked' && blocker.proceed()}>Leave without saving</Button></DialogActions>
-    </Dialog>
-    <Snackbar open={savedNotice} autoHideDuration={3500} onClose={() => setSavedNotice(false)}><Alert severity="success" variant="filled" onClose={() => setSavedNotice(false)}>Agent saved in this browser.</Alert></Snackbar>
+    <Snackbar open={savedNotice} autoHideDuration={3500} onClose={() => setSavedNotice(false)}><Alert severity="success" variant="filled" onClose={() => setSavedNotice(false)}>Agent saved to your account.</Alert></Snackbar>
   </>
 }

@@ -1,7 +1,7 @@
 import type { AgentFormValues } from '../validator/agent.validator.js'
 
 export type PromptTemplate = {
-  id: Exclude<AgentFormValues['templateId'], 'custom'>
+  id: AgentFormValues['templateId']
   title: string
   description: string
   color: string

@@ -1,0 +1,13 @@
+---
+description: Implement only requested features; keep temporary UI state simple
+alwaysApply: true
+---
+
+# Requested scope
+
+- Build the features the user asks for and the implementation needed to make them work.
+- Ask before adding optional product behavior, convenience features, recovery flows, or extra persistence.
+- Keep unsaved form values and other temporary UI state in component/form state. Refreshing or leaving may discard them.
+- Do not add localStorage drafts, autosave, draft recovery/import, or unsaved-change navigation/refresh prompts unless explicitly requested.
+- Preserve explicitly requested backend saves, authentication, ownership checks, and cleanup needed for existing features.
+- Apply this preference across the project, not only to the agent editor.

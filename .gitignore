@@ -35,8 +35,9 @@ backend/.env.*
 .local/
 *.tsbuildinfo
 
-# Local-only notes, SQL experiments, and configuration overrides.
-# Keep project documentation, Prisma migrations, and Python manifests versioned.
-*.local.md
+# Markdown files at every directory depth, including nested folders.
+*.md
+
+# Local-only SQL experiments and configuration overrides.
 *.local.sql
 *.local.toml

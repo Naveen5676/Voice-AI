@@ -1,15 +1,12 @@
 import { Box, Card, CardActionArea, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material'
 import { Link } from 'react-router'
 import { StudioIcon } from '../../../components/StudioIcon'
-import { customAgentTemplate, promptTemplates } from '../data/prompt-templates'
+import { useAgentWorkspace } from '../hooks/useAgentWorkspace'
 import { TemplateMark } from './TemplateMark'
 
-const choices = [
-  customAgentTemplate,
-  ...promptTemplates,
-]
 
 export function CreateAgentDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { templates: choices } = useAgentWorkspace()
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" aria-labelledby="create-agent-title" aria-describedby="create-agent-description">
     <DialogTitle id="create-agent-title" sx={{ pt: 3.5, px: 3.5, pr: 7, pb: 1 }}>Create an agent</DialogTitle>
     <IconButton aria-label="Close agent options" onClick={onClose} sx={{ position: 'absolute', right: 16, top: 18 }}><StudioIcon name="close" /></IconButton>

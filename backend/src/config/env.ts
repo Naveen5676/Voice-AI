@@ -10,10 +10,22 @@ const schema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: httpUrl.default('http://localhost:5173'),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
+  LIVEKIT_URL: z.preprocess((value) => value === '' ? undefined : value, z.url().refine((value) => ['ws:', 'wss:'].includes(new URL(value).protocol), 'Use a ws:// or wss:// URL').optional()),
+  LIVEKIT_API_KEY: z.preprocess((value) => value === '' ? undefined : value, z.string().min(1).optional()),
+  LIVEKIT_API_SECRET: z.preprocess((value) => value === '' ? undefined : value, z.string().min(32).optional()),
+  AGENT_SERVICE_SECRET: z.preprocess((value) => value === '' ? undefined : value, z.string().min(32).optional()),
+  LIVEKIT_AGENT_NAME: z.string().min(1).default('my-agent'),
+  LIVEKIT_AGENT_DEPLOYMENT: z.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/, 'Use a lowercase deployment name').optional(),
+  WEB_CALL_MAX_SECONDS: z.coerce.number().int().min(30).max(3600).default(600),
+  WEB_CALL_JOIN_SECONDS: z.coerce.number().int().min(10).max(120).default(45),
+  WEB_CALL_READY_SECONDS: z.coerce.number().int().min(10).max(120).default(30),
 }).superRefine((env, context) => {
   if (env.NODE_ENV === 'production' && !env.BETTER_AUTH_URL.startsWith('https://')) {
     context.addIssue({ code: 'custom', path: ['BETTER_AUTH_URL'], message: 'HTTPS is required in production' })
   }
+  const voice = [env.LIVEKIT_URL, env.LIVEKIT_API_KEY, env.LIVEKIT_API_SECRET, env.AGENT_SERVICE_SECRET]
+  if (voice.some(Boolean) && !voice.every(Boolean)) context.addIssue({ code: 'custom', path: ['LIVEKIT_URL'], message: 'Set all LiveKit credentials and AGENT_SERVICE_SECRET, or leave all unset' })
+  if (env.NODE_ENV === 'production' && env.LIVEKIT_URL?.startsWith('ws://')) context.addIssue({ code: 'custom', path: ['LIVEKIT_URL'], message: 'Production LiveKit requires wss://' })
 })
 
 export type Environment = z.infer<typeof schema>

@@ -69,4 +69,4 @@ All errors contain a `message`. Schema validation errors also contain `errors`, 
 
 ## Current integration status
 
-The backend and database endpoints are implemented and tested. The UI still uses its browser-local draft repository until the next integration phase; creating an agent through the UI currently does not call this API. Browser drafts are not automatically imported. Voice calling and knowledge bases are separate future steps.
+The UI uses these endpoints for account-backed agent persistence. Unsaved edits stay in form state and are discarded on refresh or navigation. Browser voice calls use the saved agent through separate [call-session endpoints](web-calls.md); knowledge bases remain deferred.

@@ -1,19 +1,19 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Box, Button, Card, CardActionArea, CardActions, Chip, InputAdornment, Stack, TextField, Typography } from '@mui/material'
 import { Link } from 'react-router'
 import { StudioIcon } from '../../../components/StudioIcon'
 import { TemplateMark } from '../../agents/components/TemplateMark'
-import { WebCallDialog } from '../../agents/components/WebCallDialog'
 import { WorkspaceStatus } from '../../agents/components/WorkspaceStatus'
-import { findTemplate } from '../../agents/data/prompt-templates'
 import { CreateAgentDialog } from '../../agents/components/CreateAgentDialog'
 import { useAgentWorkspace } from '../../agents/hooks/useAgentWorkspace'
-import type { AgentDraft } from '../../agents/types'
+import type { SavedAgent } from '../../agents/types'
+
+const WebCallDialog = lazy(() => import('../../agents/components/WebCallDialog').then((module) => ({ default: module.WebCallDialog })))
 
 export function DashboardPage() {
-  const { agents, ready, error, retry } = useAgentWorkspace()
+  const { agents, templates, ready, error, retry } = useAgentWorkspace()
   const [search, setSearch] = useState('')
-  const [calling, setCalling] = useState<AgentDraft | null>(null)
+  const [calling, setCalling] = useState<SavedAgent | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const filtered = agents.filter((agent) => agent.name.toLowerCase().includes(search.trim().toLowerCase()))
 
@@ -36,15 +36,15 @@ export function DashboardPage() {
         <CardActionArea component={Link} to={`/agents/${agent.id}`} sx={{ p: 3, flexGrow: 1, alignItems: 'flex-start' }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center"><TemplateMark templateId={agent.templateId} /><StudioIcon name="arrow" sx={{ fontSize: 18, color: 'text.secondary' }} /></Stack>
           <Typography component="h2" fontSize={18} fontWeight={600} sx={{ mt: 2.5, overflowWrap: 'anywhere' }}>{agent.name}</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{findTemplate(agent.templateId)?.title ?? 'Custom prompt'}</Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>Edited {new Date(agent.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · Saved in this browser</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{templates.find((item) => item.id === agent.templateId)?.title ?? 'Custom prompt'}</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>Edited {new Date(agent.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · Saved to your account</Typography>
         </CardActionArea>
         <CardActions sx={{ borderTop: 1, borderColor: 'divider', p: 1.5, px: 2.5 }}><Button size="small" color="inherit" startIcon={<StudioIcon name="mic" sx={{ fontSize: 17 }} />} onClick={() => setCalling(agent)}>Web Call</Button></CardActions>
       </Card>)}
     </Box>}
 
-    {agents.length > 0 && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 3 }}>UI preview · Agents are saved only in this browser. Voice calling will be connected in the next step.</Typography>}
+    {agents.length > 0 && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 3 }}>Agents sync to your account. Web Call uses each agent's saved instructions.</Typography>}
     <CreateAgentDialog open={createOpen} onClose={() => setCreateOpen(false)} />
-    <WebCallDialog open={!!calling} agentName={calling?.name ?? ''} onClose={() => setCalling(null)} />
+    {calling && <Suspense fallback={<Typography role="status">Loading voice controls?</Typography>}><WebCallDialog agentId={calling.id} open agentName={calling.name} onClose={() => setCalling(null)} /></Suspense>}
   </>
 }
