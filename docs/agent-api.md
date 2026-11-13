@@ -8,7 +8,7 @@ All requests require a valid Better Auth session cookie. For browser integration
 
 POST and PATCH require `Content-Type: application/json` and an `Origin` header equal to the origin configured by `BETTER_AUTH_URL` (locally, `http://localhost:5173`). Browsers send this header automatically for these same-origin writes. When manually testing with an API client, supply it explicitly along with the session cookie.
 
-Owners and timestamps are controlled by the server. Clients cannot submit `id`, `ownerId`, `createdAt`, or `updatedAt`. Reusable helpers in `backend/src/services/prisma-service.ts` use Prisma Client for database operations. Reads/updates filter by both agent ID and signed-in owner where applicable. Responses use `Cache-Control: no-store`.
+Owners and timestamps are controlled by the server. Clients cannot submit `id`, `ownerId`, `createdAt`, or `updatedAt`. Reusable helpers in `backend/src/services/agent.service.ts` use Prisma Client for database operations. Reads/updates filter by both agent ID and signed-in owner where applicable. Responses use `Cache-Control: no-store`.
 
 ## 1. GET /api/agent-templates
 
@@ -55,6 +55,10 @@ Send one or more of `name`, `prompt`, and `templateId`:
 ```
 
 Returns `200` with `{ "agent": { ... } }`. Omitted fields remain unchanged, and `updatedAt` advances. Empty bodies, unknown fields, null fields, or invalid values return `400`. Ownership is checked in the UPDATE statement itself; another user's agent cannot be modified.
+
+## 6. DELETE /api/agents/:id
+
+Deletes an owned agent. Requires a valid session and trusted `Origin`. Returns `200` with `{ "id": "<id>" }`. Missing agents and agents owned by another user return `404`. If the agent currently has an active voice call (`pending`, `connecting`, or `active`), returns `409` conflict asking the user to end the call first. Past calls associated with the agent are cleaned up.
 
 ## Errors
 

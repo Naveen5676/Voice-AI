@@ -14,8 +14,7 @@ The backend follows the reference OpenMic project's core pattern: TypeScript com
 - `backend/prisma/migrations/`: versioned SQL generated for Prisma Migrate. The initial migration also preserves the existing agent CHECK constraints, which Prisma schema syntax cannot represent.
 - `backend/prisma.config.ts`: Prisma schema path, migration path, and database URL from the environment.
 - `backend/src/db/prisma.ts`: one Prisma Client factory, with PostgreSQL connection pooling and UTC connection settings.
-- `backend/src/services/prisma-service.ts`: reusable `createAgent`, `getAgents`, `getAgent`, and `updateAgent` helpers using `prisma.agent` methods.
-- `backend/src/services/agent.service.ts`: application behavior and consistent not-found errors.
+- `backend/src/services/agent.service.ts`: reusable agent operations (create, list, get, update, delete) using Prisma Client with consistent owner filtering and error handling.
 - `backend/src/routes/agents.ts`: HTTP handling, session checks, origin checks, and request validation.
 
 The same Prisma client is supplied to the agent helpers and Better Auth's Prisma adapter. Each agent query includes the authenticated owner. An update filters by both ID and owner in the update operation; it does not depend on a separate ownership check that could become stale.

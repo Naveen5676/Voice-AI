@@ -1,5 +1,5 @@
 import { PrismaPg } from '@prisma/adapter-pg'
-import { PrismaClient } from '../generated/prisma/client'
+import { PrismaClient } from '../generated/prisma/client.js'
 
 export function createPrismaClient(connectionString: string) {
   // PrismaPg currently expects UTC sessions for timestamptz. Preserve any URL

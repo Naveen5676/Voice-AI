@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Environment } from '../config/env.js'
-import type { Database } from '../db/prisma'
+import type { Database } from '../db/prisma.js'
 import { HttpError } from '../lib/http-error.js'
 import type { VoiceTransport } from './livekit.service.js'
 

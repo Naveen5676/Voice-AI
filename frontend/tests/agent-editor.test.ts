@@ -96,3 +96,34 @@ test('late account-A requests cannot populate account-B data', async () => {
   store.dispatch(agentsApi.util.resetApiState())
   store.dispatch(authApi.util.resetApiState())
 })
+
+test('editor allows deleting an existing agent and navigates to dashboard', async () => {
+  const calls: string[] = []
+  const agent = { id: 'f9c69930-a49b-429a-8595-536e96053738', name: 'Willow', prompt: 'Help callers.', templateId: 'custom', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+  globalThis.fetch = async (input, init) => {
+    const request = input instanceof Request ? input : new Request(input, init)
+    const path = new URL(request.url).pathname
+    calls.push(`${request.method} ${path}`)
+    if (path === '/api/agent-templates') return Response.json({ templates: [customAgentTemplate, ...promptTemplates] })
+    if (request.method === 'DELETE' && path === `/api/agents/${agent.id}`) return Response.json({ id: agent.id })
+    if (path === `/api/agents/${agent.id}`) return Response.json({ agent })
+    if (path === '/api/agents') return Response.json({ agents: [] })
+    throw new Error(`Unexpected request ${path}`)
+  }
+  await store.dispatch(authApi.util.upsertQueryData('getSession', undefined, { id: 'first-owner', name: 'Owner', email: 'owner@example.com' }))
+  const router = createMemoryRouter([
+    { path: '/agents/:agentId', element: React.createElement(AgentEditorPage) },
+    { path: '/dashboard', element: React.createElement('div', null, 'Dashboard') },
+  ], { initialEntries: [`/agents/${agent.id}`] })
+  const view = render(React.createElement(Provider, { store }, React.createElement(RouterProvider, { router })))
+  const deleteBtn = await view.findByRole('button', { name: 'Delete agent' })
+  fireEvent.click(deleteBtn)
+  const confirmBtn = await view.findByRole('button', { name: 'Delete' })
+  fireEvent.click(confirmBtn)
+  await waitFor(() => assert.equal(router.state.location.pathname, '/dashboard'))
+  assert.ok(calls.includes(`DELETE /api/agents/${agent.id}`))
+  cleanup()
+  router.dispose()
+  store.dispatch(agentsApi.util.resetApiState())
+  store.dispatch(authApi.util.resetApiState())
+})

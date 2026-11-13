@@ -32,5 +32,9 @@ export function agentRoutes(auth: Auth, service: AgentService, publicUrl: string
     const values = updateAgentSchema.parse(request.body)
     response.json({ agent: await service.update(response.locals.user.id, id, values) })
   })
+  router.delete('/agents/:id', trustedOrigin, async (request, response) => {
+    const { id } = agentIdSchema.parse(request.params)
+    response.json(await service.delete(response.locals.user.id, id))
+  })
   return router
 }

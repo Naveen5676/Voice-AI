@@ -15,6 +15,7 @@ const paths = {
   check: 'm5 12 4 4L19 6',
   edit: 'm4 16 11-11 4 4L8 20H4v-4ZM13 7l4 4',
   logout: 'M9 5H4v14h5m5-12 5 5-5 5m-6-5h11',
+  trash: 'M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6',
 } as const
 
 export function StudioIcon({ name, ...props }: SvgIconProps & { name: keyof typeof paths }) {

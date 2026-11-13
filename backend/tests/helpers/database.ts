@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { Pool } from 'pg'
 import { readEnvironment } from '../../src/config/env.js'
-import { createPrismaClient } from '../../src/db/prisma'
+import { createPrismaClient } from '../../src/db/prisma.js'
 
 export async function deployTestMigrations(connectionString: string) {
   await promisify(execFile)(process.execPath, [require.resolve('prisma/build/index.js'), 'migrate', 'deploy', '--config', 'prisma.config.ts'], {

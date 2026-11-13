@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react'
-import { Box, Button, Card, CardActionArea, CardActions, Chip, InputAdornment, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardActionArea, CardActions, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, InputAdornment, Stack, TextField, Typography } from '@mui/material'
 import { Link } from 'react-router'
 import { StudioIcon } from '../../../components/StudioIcon'
 import { TemplateMark } from '../../agents/components/TemplateMark'
@@ -11,15 +11,19 @@ import type { SavedAgent } from '../../agents/types'
 const WebCallDialog = lazy(() => import('../../agents/components/WebCallDialog').then((module) => ({ default: module.WebCallDialog })))
 
 export function DashboardPage() {
-  const { agents, templates, ready, error, retry } = useAgentWorkspace()
+  const { agents, templates, ready, error, retry, deleteAgent } = useAgentWorkspace()
   const [search, setSearch] = useState('')
   const [calling, setCalling] = useState<SavedAgent | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [deleting, setDeleting] = useState<SavedAgent | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const filtered = agents.filter((agent) => agent.name.toLowerCase().includes(search.trim().toLowerCase()))
 
   if (!ready) return <WorkspaceStatus error={error} retry={retry} />
 
   return <>
+    {deleteError && <Alert severity="error" sx={{ mb: 3 }} onClose={() => setDeleteError(null)}>{deleteError}</Alert>}
     {agents.length > 0 && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2.5} sx={{ mb: 4 }}>
       <Box><Typography component="h1" variant="h4" sx={{ fontSize: { xs: 30, md: 34 } }}>Your agents</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>A little direction. A voice of your own.</Typography></Box>
       <Button onClick={() => setCreateOpen(true)} variant="contained" startIcon={<StudioIcon name="plus" />}>Create agent</Button>
@@ -39,12 +43,36 @@ export function DashboardPage() {
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{templates.find((item) => item.id === agent.templateId)?.title ?? 'Custom prompt'}</Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>Edited {new Date(agent.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · Saved to your account</Typography>
         </CardActionArea>
-        <CardActions sx={{ borderTop: 1, borderColor: 'divider', p: 1.5, px: 2.5 }}><Button size="small" color="inherit" startIcon={<StudioIcon name="mic" sx={{ fontSize: 17 }} />} onClick={() => setCalling(agent)}>Web Call</Button></CardActions>
+        <CardActions sx={{ borderTop: 1, borderColor: 'divider', p: 1.5, px: 2.5, justifyContent: 'space-between' }}>
+          <Button size="small" color="inherit" startIcon={<StudioIcon name="mic" sx={{ fontSize: 17 }} />} onClick={() => setCalling(agent)}>Web Call</Button>
+          <Button size="small" color="error" startIcon={<StudioIcon name="trash" sx={{ fontSize: 17 }} />} onClick={() => setDeleting(agent)}>Delete</Button>
+        </CardActions>
       </Card>)}
     </Box>}
 
     {agents.length > 0 && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 3 }}>Agents sync to your account. Web Call uses each agent's saved instructions.</Typography>}
     <CreateAgentDialog open={createOpen} onClose={() => setCreateOpen(false)} />
-    {calling && <Suspense fallback={<Typography role="status">Loading voice controls?</Typography>}><WebCallDialog agentId={calling.id} open agentName={calling.name} onClose={() => setCalling(null)} /></Suspense>}
+    {calling && <Suspense fallback={<Typography role="status">Loading voice controls...</Typography>}><WebCallDialog agentId={calling.id} open agentName={calling.name} onClose={() => setCalling(null)} /></Suspense>}
+    <Dialog open={!!deleting} onClose={() => !isDeleting && setDeleting(null)} maxWidth="xs" fullWidth aria-labelledby="delete-dashboard-dialog-title">
+      <DialogTitle id="delete-dashboard-dialog-title">Delete agent?</DialogTitle>
+      <DialogContent><DialogContentText>Are you sure you want to delete <strong>{deleting?.name}</strong>? This action cannot be undone.</DialogContentText></DialogContent>
+      <DialogActions sx={{ p: 2.5 }}>
+        <Button color="inherit" disabled={isDeleting} onClick={() => setDeleting(null)}>Cancel</Button>
+        <Button variant="contained" color="error" loading={isDeleting} onClick={async () => {
+          if (!deleting) return
+          setIsDeleting(true)
+          setDeleteError(null)
+          try {
+            await deleteAgent(deleting.id)
+            setDeleting(null)
+          } catch (cause) {
+            setDeleteError(cause instanceof Error ? cause.message : 'Could not delete agent. Please try again.')
+            setDeleting(null)
+          } finally {
+            setIsDeleting(false)
+          }
+        }}>Delete</Button>
+      </DialogActions>
+    </Dialog>
   </>
 }

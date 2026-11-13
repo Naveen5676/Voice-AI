@@ -24,6 +24,10 @@ export const agentsApi = createApi({
       transformResponse: (body: { agent: SavedAgent }) => body.agent,
       invalidatesTags: (_result, _error, { id }) => ['Agents', ...(id ? [{ type: 'Agent' as const, id }] : [])],
     }),
+    deleteAgent: builder.mutation<{ id: string }, { ownerId: string; id: string }>({
+      query: ({ id }) => ({ url: `/agents/${encodeURIComponent(id)}`, method: 'DELETE' }),
+      invalidatesTags: (_result, _error, { id }) => ['Agents', { type: 'Agent', id }],
+    }),
     templates: builder.query<PromptTemplate[], string>({
       query: () => '/agent-templates',
       transformResponse: (body: { templates: PromptTemplate[] }) => body.templates,
@@ -32,7 +36,7 @@ export const agentsApi = createApi({
   }),
 })
 
-export const { useListAgentsQuery, useGetAgentQuery, useSaveAgentMutation, useTemplatesQuery } = agentsApi
+export const { useListAgentsQuery, useGetAgentQuery, useSaveAgentMutation, useDeleteAgentMutation, useTemplatesQuery } = agentsApi
 
 export function agentErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'data' in error) {

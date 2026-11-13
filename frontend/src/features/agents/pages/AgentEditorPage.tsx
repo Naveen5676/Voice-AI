@@ -22,7 +22,7 @@ export function AgentEditorPage() {
   if (!workspace.ready) return <WorkspaceStatus error={workspace.error} retry={workspace.retry} />
   const existing = workspace.agent
   const initialTemplate = workspace.templates.find((item) => item.id === searchParams.get('template'))
-  return <AgentEditor key={`${workspace.ownerId}-${agentId ?? `new-${initialTemplate?.id}`}`} existing={existing} initialTemplate={initialTemplate} templates={workspace.templates} onSave={workspace.saveAgent} />
+  return <AgentEditor key={`${workspace.ownerId}-${agentId ?? `new-${initialTemplate?.id}`}`} existing={existing} initialTemplate={initialTemplate} templates={workspace.templates} onSave={workspace.saveAgent} onDelete={workspace.deleteAgent} />
 }
 
 type EditorProps = {
@@ -30,12 +30,15 @@ type EditorProps = {
   templates: PromptTemplate[]
   initialTemplate?: PromptTemplate
   onSave: (values: AgentFormValues, id?: string) => Promise<SavedAgent>
+  onDelete?: (id: string) => Promise<unknown>
 }
 
-function AgentEditor({ existing, initialTemplate, templates, onSave }: EditorProps) {
+function AgentEditor({ existing, initialTemplate, templates, onSave, onDelete }: EditorProps) {
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [savedNotice, setSavedNotice] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [callOpen, setCallOpen] = useState(false)
   const [pendingTemplate, setPendingTemplate] = useState<PromptTemplate | 'custom' | null>(null)
   const { control, handleSubmit, reset, setValue, getValues, formState: { isDirty, isSubmitting } } = useForm<AgentFormValues>({
@@ -81,7 +84,10 @@ function AgentEditor({ existing, initialTemplate, templates, onSave }: EditorPro
         </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Give it a purpose. Make it sound like you.</Typography>
       </Box>
-      <Button form="agent-form" type="submit" variant="contained" loading={isSubmitting} disabled={!!existing && !isDirty} startIcon={<StudioIcon name="check" />}>{existing ? 'Save changes' : 'Save agent'}</Button>
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        {existing && <Button type="button" variant="outlined" color="error" disabled={isSubmitting || isDeleting} startIcon={<StudioIcon name="trash" />} onClick={() => setDeleteOpen(true)}>Delete agent</Button>}
+        <Button form="agent-form" type="submit" variant="contained" loading={isSubmitting} disabled={(!!existing && !isDirty) || isDeleting} startIcon={<StudioIcon name="check" />}>{existing ? 'Save changes' : 'Save agent'}</Button>
+      </Stack>
     </Stack>
     {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
@@ -128,6 +134,26 @@ function AgentEditor({ existing, initialTemplate, templates, onSave }: EditorPro
     </Box>
 
     {callOpen && <Suspense fallback={<Typography role="status">Loading voice controls?</Typography>}><WebCallDialog agentId={existing?.id ?? ''} agentName={existing?.name ?? name} open onClose={() => setCallOpen(false)} /></Suspense>}
+    <Dialog open={deleteOpen} onClose={() => !isDeleting && setDeleteOpen(false)} maxWidth="xs" fullWidth aria-labelledby="delete-agent-title">
+      <DialogTitle id="delete-agent-title">Delete agent?</DialogTitle>
+      <DialogContent><DialogContentText>Are you sure you want to delete <strong>{existing?.name || name || 'this agent'}</strong>? This action cannot be undone.</DialogContentText></DialogContent>
+      <DialogActions sx={{ p: 2.5 }}>
+        <Button color="inherit" disabled={isDeleting} onClick={() => setDeleteOpen(false)}>Cancel</Button>
+        <Button variant="contained" color="error" loading={isDeleting} onClick={async () => {
+          if (!existing || !onDelete) return
+          setIsDeleting(true)
+          setError(null)
+          try {
+            await onDelete(existing.id)
+            navigate('/dashboard', { replace: true })
+          } catch (cause) {
+            setError(cause instanceof Error ? cause.message : 'Could not delete agent. Please try again.')
+            setDeleteOpen(false)
+            setIsDeleting(false)
+          }
+        }}>Delete</Button>
+      </DialogActions>
+    </Dialog>
     <Dialog open={!!pendingTemplate} onClose={() => setPendingTemplate(null)} maxWidth="xs" fullWidth aria-labelledby="replace-prompt-title">
       <DialogTitle id="replace-prompt-title">Replace this prompt?</DialogTitle>
       <DialogContent><DialogContentText>The selected starting point will replace the text in your prompt editor. Your saved version stays unchanged until you save.</DialogContentText></DialogContent>

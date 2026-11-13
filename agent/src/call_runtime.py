@@ -8,7 +8,6 @@ from pathlib import Path
 from traceback import extract_tb
 
 from livekit.agents import room_io
-from livekit.plugins import ai_coustics
 
 from call_context import Dispatch
 
@@ -87,11 +86,6 @@ async def run_voice_call(ctx, backend, make_session, make_assistant):
                 room_options=room_io.RoomOptions(
                     participant_identity=config.participant_identity,
                     close_on_disconnect=False,
-                    audio_input=room_io.AudioInputOptions(
-                        noise_cancellation=ai_coustics.audio_enhancement(
-                            model=ai_coustics.EnhancerModel.QUAIL_VF_S
-                        )
-                    ),
                 ),
             ),
             timeout=min(

@@ -1,7 +1,7 @@
 import { betterAuth } from 'better-auth'
 import type { BetterAuthOptions } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
-import type { Database } from '../db/prisma'
+import type { Database } from '../db/prisma.js'
 import type { Environment } from '../config/env.js'
 import { validateAuth } from '../middleware/validate-auth.js'
 

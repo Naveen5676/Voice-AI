@@ -5,11 +5,10 @@ import helmet from 'helmet'
 import { toNodeHandler } from 'better-auth/node'
 import type { Environment } from './config/env.js'
 import type { Auth } from './lib/auth.js'
-import type { Database } from './db/prisma'
+import type { Database } from './db/prisma.js'
 import { accountRoutes } from './routes/account.js'
 import { errorHandler } from './middleware/error-handler.js'
 import { agentRoutes } from './routes/agents.js'
-import { createPrismaService } from './services/prisma-service'
 import { createAgentService } from './services/agent.service.js'
 import { createLivekitService, type VoiceTransport } from './services/livekit.service.js'
 import { createWebCallService } from './services/web-call.service.js'
@@ -35,7 +34,7 @@ export function createApp(auth: Auth, env: Environment, database: Database, voic
   // A 12,000-character prompt can exceed 16 KB when JSON escaped or Unicode.
   app.use(express.json({ limit: '96kb' }))
   app.use('/api', accountRoutes(auth))
-  app.use('/api', agentRoutes(auth, createAgentService(createPrismaService(database)), env.BETTER_AUTH_URL))
+  app.use('/api', agentRoutes(auth, createAgentService(database), env.BETTER_AUTH_URL))
   app.use('/api', webCallRoutes(auth, calls, env.BETTER_AUTH_URL))
   app.use('/api/internal/web-calls', internalWebCallRoutes(calls, env.AGENT_SERVICE_SECRET))
   app.use('/api', (_request, response) => response.status(404).json({ message: 'API endpoint not found.' }))

@@ -34,11 +34,12 @@ test('agent management APIs with real sessions and PostgreSQL', { skip: !process
     let agentId = ''
     let otherId = ''
 
-    await t.test('all five endpoints require authentication', async () => {
+    await t.test('all endpoints require authentication', async () => {
       for (const [method, path, body] of [
         ['GET', '/api/agent-templates', undefined], ['GET', '/api/agents', undefined],
         ['POST', '/api/agents', input], ['GET', `/api/agents/${randomUUID()}`, undefined],
         ['PATCH', `/api/agents/${randomUUID()}`, { name: 'Changed' }],
+        ['DELETE', `/api/agents/${randomUUID()}`, undefined],
       ] as const) assert.equal((await call(method, path, '', body)).status, 401)
     })
     await t.test('templates include Custom and three editable presets', async () => {
@@ -76,9 +77,9 @@ test('agent management APIs with real sessions and PostgreSQL', { skip: !process
       assert.deepEqual((await response.json()).agents.map((agent: { id: string }) => agent.id), [agentId])
       assert.deepEqual((await (await call('GET', '/api/agents', second.cookie)).json()).agents.map((agent: { id: string }) => agent.id), [otherId])
     })
-    await t.test('get and patch hide other users’ agents and missing agents', async () => {
+    await t.test('get, patch and delete hide other users’ agents and missing agents', async () => {
       for (const id of [otherId, randomUUID()]) {
-        for (const method of ['GET', 'PATCH']) {
+        for (const method of ['GET', 'PATCH', 'DELETE']) {
           const response = await call(method, `/api/agents/${id}`, first.cookie, method === 'PATCH' ? { name: 'Not allowed' } : undefined)
           assert.equal(response.status, 404)
           assert.deepEqual(await response.json(), { message: 'Agent not found.' })
@@ -131,6 +132,16 @@ test('agent management APIs with real sessions and PostgreSQL', { skip: !process
       assert.equal((await call('PATCH', `/api/agents/${agentId}`, first.cookie, { name: 'Most recent' })).status, 200)
       list = (await (await call('GET', '/api/agents', first.cookie)).json()).agents
       assert.equal(list[0].id, agentId)
+    })
+    await t.test('delete removes owned agent and prevents future access', async () => {
+      const created = await call('POST', '/api/agents', first.cookie, { name: 'To be deleted', prompt: 'Delete me.' })
+      assert.equal(created.status, 201)
+      const toDeleteId = (await created.json()).agent.id
+      const delResponse = await call('DELETE', `/api/agents/${toDeleteId}`, first.cookie)
+      assert.equal(delResponse.status, 200)
+      assert.deepEqual(await delResponse.json(), { id: toDeleteId })
+      const getResponse = await call('GET', `/api/agents/${toDeleteId}`, first.cookie)
+      assert.equal(getResponse.status, 404)
     })
     await t.test('malformed and oversized JSON return useful client errors', async () => {
       for (const [body, expected] of [['{broken', 400], [JSON.stringify({ prompt: 'x'.repeat(100_000) }), 413]] as const) {
