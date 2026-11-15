@@ -5,6 +5,7 @@ from typing import List, Optional
 
 import chromadb
 from fastapi import FastAPI, HTTPException
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -49,38 +50,24 @@ class DeleteRequest(BaseModel):
     agent_id: Optional[str] = None
 
 
-def chunk_text(text: str, chunk_size: int = 500, overlap: int = 80) -> List[str]:
-    """Split long text into overlapping chunks, prioritizing paragraphs and sentences."""
-    paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
-    if not paragraphs:
-        return [text.strip()] if text.strip() else []
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,
+    chunk_overlap=80,
+    length_function=len,
+    is_separator_regex=False,
+    separators=["\n\n", "\n", " ", ""],
+)
 
-    chunks = []
-    current_chunk = ""
-    for para in paragraphs:
-        if len(current_chunk) + len(para) + 1 <= chunk_size:
-            current_chunk = f"{current_chunk}\n{para}".strip()
-        else:
-            if current_chunk:
-                chunks.append(current_chunk)
-            if len(para) > chunk_size:
-                words = para.split(" ")
-                temp = ""
-                for word in words:
-                    if len(temp) + len(word) + 1 <= chunk_size:
-                        temp = f"{temp} {word}".strip()
-                    else:
-                        if temp:
-                            chunks.append(temp)
-                        temp = word
-                current_chunk = temp
-            else:
-                current_chunk = para
 
-    if current_chunk:
-        chunks.append(current_chunk)
-
-    return chunks or [text.strip()]
+def chunk_text(text: str) -> List[str]:
+    """Split text into standardized overlapping chunks using LangChain's RecursiveCharacterTextSplitter.
+    If the text is short (<= 500 characters), it naturally returns a single intact chunk."""
+    cleaned = text.strip()
+    if not cleaned:
+        return []
+    if len(cleaned) <= 500:
+        return [cleaned]
+    return text_splitter.split_text(cleaned)
 
 
 @app.get("/health")
