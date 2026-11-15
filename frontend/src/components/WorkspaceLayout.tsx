@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Alert, Avatar, Box, Button, Chip, Divider, Stack, Typography } from '@mui/material'
-import { Link, Outlet, useNavigate } from 'react-router'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { useAppDispatch } from '../app/store'
 import { authApi, authErrorMessage, signOut, useGetSessionQuery } from '../features/auth/api/auth-api'
 import { agentsApi } from '../features/agents/api/agents-api'
@@ -11,8 +11,12 @@ export function WorkspaceLayout() {
   const { data: user } = useGetSessionQuery()
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const isAgents = !location.pathname.startsWith('/knowledge-bases')
+  const isKb = location.pathname.startsWith('/knowledge-bases')
 
   async function logout() {
     setError(null)
@@ -33,7 +37,10 @@ export function WorkspaceLayout() {
     <Stack component="aside" sx={{ display: { xs: 'none', md: 'flex' }, width: 232, flexShrink: 0, position: 'fixed', inset: '0 auto 0 0', bgcolor: '#f0f0e9', borderRight: 1, borderColor: 'divider', px: 2.5, py: 3.5 }}>
       <Box sx={{ px: 0.5 }}><Brand /></Box>
       <Typography variant="overline" color="text.secondary" sx={{ fontSize: 10, letterSpacing: '.14em', mt: 6, mb: 1, px: 1.5 }}>WORKSPACE</Typography>
-      <Button component={Link} to="/dashboard" startIcon={<StudioIcon name="grid" />} color="inherit" sx={{ bgcolor: '#e2e4d9', justifyContent: 'flex-start', px: 1.5, '&:hover': { bgcolor: '#daddd0' } }}>Agents</Button>
+      <Stack spacing={0.75} sx={{ mb: 2 }}>
+        <Button component={Link} to="/dashboard" startIcon={<StudioIcon name="grid" />} color="inherit" sx={{ bgcolor: isAgents ? '#e2e4d9' : 'transparent', fontWeight: isAgents ? 600 : 400, justifyContent: 'flex-start', px: 1.5, '&:hover': { bgcolor: '#daddd0' } }}>Agents</Button>
+        <Button component={Link} to="/knowledge-bases" startIcon={<StudioIcon name="book" />} color="inherit" sx={{ bgcolor: isKb ? '#e2e4d9' : 'transparent', fontWeight: isKb ? 600 : 400, justifyContent: 'flex-start', px: 1.5, '&:hover': { bgcolor: '#daddd0' } }}>Knowledge Base</Button>
+      </Stack>
       <Box sx={{ mt: 'auto' }}>
         <Box sx={{ p: 1.5, mb: 2, border: 1, borderColor: '#dcded2', borderRadius: 2 }}>
           <Typography variant="body2" fontWeight={600}>One prompt. Your voice.</Typography>
@@ -50,7 +57,7 @@ export function WorkspaceLayout() {
     <Box sx={{ ml: { md: '232px' }, width: { xs: '100%', md: 'calc(100% - 232px)' }, minWidth: 0 }}>
       <Stack component="header" direction="row" alignItems="center" justifyContent="space-between" sx={{ minHeight: 76, borderBottom: 1, borderColor: 'divider', px: { xs: 2.5, lg: 5 }, bgcolor: 'background.paper' }}>
         <Box sx={{ display: { xs: 'block', md: 'none' } }}><Brand /></Box>
-        <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' } }}>Your workspace <Box component="span" sx={{ color: '#b7bbae', mx: 1.5 }}>/</Box><Box component="span" sx={{ color: 'text.primary', fontWeight: 500 }}>Agents</Box></Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' } }}>Your workspace <Box component="span" sx={{ color: '#b7bbae', mx: 1.5 }}>/</Box><Box component="span" sx={{ color: 'text.primary', fontWeight: 500 }}>{isKb ? 'Knowledge Base' : 'Agents'}</Box></Typography>
         <Stack direction="row" alignItems="center" spacing={2}>
           <Chip label="Personal workspace" variant="outlined" size="small" sx={{ display: { xs: 'none', sm: 'inline-flex' }, fontSize: 11, borderColor: 'divider', bgcolor: '#fafaf7' }} />
           <Box sx={{ display: { md: 'none' } }}>{logoutButton}</Box>

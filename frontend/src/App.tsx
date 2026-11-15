@@ -4,6 +4,7 @@ import { AuthPage } from './features/auth/pages/AuthPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
 import { WorkspaceLayout } from './components/WorkspaceLayout'
 import { AgentEditorPage } from './features/agents/pages/AgentEditorPage'
+import { KnowledgeBasePage } from './features/knowledge-base/pages/KnowledgeBasePage'
 
 const router = createBrowserRouter(createRoutesFromElements(<>
     <Route element={<SessionBoundary authenticated={false} />}>
@@ -15,6 +16,7 @@ const router = createBrowserRouter(createRoutesFromElements(<>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/agents/new" element={<AgentEditorPage />} />
         <Route path="/agents/:agentId" element={<AgentEditorPage />} />
+        <Route path="/knowledge-bases" element={<KnowledgeBasePage />} />
       </Route>
     </Route>
     <Route path="*" element={<Navigate to="/dashboard" replace />} />

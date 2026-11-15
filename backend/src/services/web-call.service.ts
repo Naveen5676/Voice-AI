@@ -61,7 +61,7 @@ export function createWebCallService(prisma: Database, env: Environment, transpo
         if (await tx.voiceCall.count({ where: { ownerId, createdAt: { gt: new Date(now.getTime() - 60_000) } } }) >= 5) throw new HttpError(429, 'Too many call attempts. Wait a minute before trying again.')
         if (await tx.voiceCall.count({ where: { ownerId, status: { in: live } } })) throw new HttpError(409, 'End your current call before starting another.')
         const call = await tx.voiceCall.create({ data: {
-          ownerId, agentId, idempotencyKey,
+          ownerId, agentId, knowledgeBaseId: agent.knowledgeBaseId, idempotencyKey,
           roomName: `voice-${randomUUID()}`, participantIdentity: randomUUID(),
           agentName: agent.name, prompt: agent.prompt, agentUpdatedAt: agent.updatedAt,
           joinDeadline: new Date(now.getTime() + env.WEB_CALL_JOIN_SECONDS * 1000),
@@ -99,7 +99,7 @@ export function createWebCallService(prisma: Database, env: Environment, transpo
       if (!call) throw new HttpError(404, 'Call context is unavailable.')
       return {
         callId: call.id, roomName: call.roomName, participantIdentity: call.participantIdentity,
-        agentName: call.agentName, prompt: call.prompt,
+        agentId: call.agentId, knowledgeBaseId: call.knowledgeBaseId, agentName: call.agentName, prompt: call.prompt,
         joinDeadline: call.joinDeadline.toISOString(), expiresAt: call.expiresAt.toISOString(),
         readyTimeoutSeconds: env.WEB_CALL_READY_SECONDS,
       }

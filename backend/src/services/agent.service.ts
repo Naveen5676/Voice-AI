@@ -5,7 +5,7 @@ import { HttpError } from '../lib/http-error.js'
 import type { AgentFormValues, UpdateAgentValues } from '../validator/agent.validator.js'
 
 const agentSelect = {
-  id: true, name: true, prompt: true, templateId: true, createdAt: true, updatedAt: true,
+  id: true, name: true, prompt: true, templateId: true, knowledgeBaseId: true, createdAt: true, updatedAt: true,
 } satisfies Prisma.AgentSelect
 
 type AgentRecord = Prisma.AgentGetPayload<{ select: typeof agentSelect }>

@@ -5,6 +5,7 @@
   "exports": {
     "./validator/auth": "./src/validator/auth.validator.ts",
     "./validator/agent": "./src/validator/agent.validator.ts",
+    "./validator/kb": "./src/validator/kb.validator.ts",
     "./agent-templates": "./src/config/agent-templates.ts"
   },
   "scripts": {

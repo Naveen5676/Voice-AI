@@ -1,0 +1,11 @@
+[project]
+name = "vector-service"
+version = "1.0.0"
+description = "FastAPI ChromaDB Vector Embedding Service for Voice Studio"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "chromadb>=0.5.0",
+    "pydantic>=2.0.0",
+]

@@ -6,6 +6,7 @@ export const agentFormSchema = z.object({
   name: z.string().trim().min(1, 'Give your agent a name.').max(100, 'Use no more than 100 characters.'),
   prompt: z.string().trim().min(1, 'Write a prompt or choose a starting point.').max(12000, 'Use no more than 12,000 characters.'),
   templateId: agentTemplateSchema,
+  knowledgeBaseId: z.string().uuid().nullable().optional(),
 })
 
 export type AgentFormValues = z.infer<typeof agentFormSchema>

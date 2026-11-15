@@ -79,9 +79,15 @@ async def run_voice_call(ctx, backend, make_session, make_assistant):
 
         session.on("close", session_closed)
         stage = "session_start"
+        # Support both 3-arg and legacy 2-arg make_assistant factories
+        try:
+            agent_instance = make_assistant(config.agent_name, config.prompt, config.knowledge_base_id)
+        except TypeError:
+            agent_instance = make_assistant(config.agent_name, config.prompt)
+
         await asyncio.wait_for(
             session.start(
-                agent=make_assistant(config.agent_name, config.prompt),
+                agent=agent_instance,
                 room=ctx.room,
                 room_options=room_io.RoomOptions(
                     participant_identity=config.participant_identity,

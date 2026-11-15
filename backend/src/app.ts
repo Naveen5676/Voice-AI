@@ -10,6 +10,8 @@ import { accountRoutes } from './routes/account.js'
 import { errorHandler } from './middleware/error-handler.js'
 import { agentRoutes } from './routes/agents.js'
 import { createAgentService } from './services/agent.service.js'
+import { createKbService } from './services/kb.service.js'
+import { kbRoutes } from './routes/kb.js'
 import { createLivekitService, type VoiceTransport } from './services/livekit.service.js'
 import { createWebCallService } from './services/web-call.service.js'
 import { webCallRoutes } from './routes/web-calls.js'
@@ -35,6 +37,7 @@ export function createApp(auth: Auth, env: Environment, database: Database, voic
   app.use(express.json({ limit: '96kb' }))
   app.use('/api', accountRoutes(auth))
   app.use('/api', agentRoutes(auth, createAgentService(database), env.BETTER_AUTH_URL))
+  app.use('/api', kbRoutes(auth, createKbService(database, env.VECTOR_SERVICE_URL), env.BETTER_AUTH_URL))
   app.use('/api', webCallRoutes(auth, calls, env.BETTER_AUTH_URL))
   app.use('/api/internal/web-calls', internalWebCallRoutes(calls, env.AGENT_SERVICE_SECRET))
   app.use('/api', (_request, response) => response.status(404).json({ message: 'API endpoint not found.' }))

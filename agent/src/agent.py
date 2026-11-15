@@ -14,21 +14,36 @@ from livekit.agents import (
     cli,
     inference,
 )
+from livekit.agents.llm import function_tool
 
 from backend_client import BackendClient
 from call_context import voice_instructions
 from call_runtime import run_voice_call
 from config import BackendConfig
+from kb_client import search_knowledge_base
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 logger = logging.getLogger("agent")
 
 
+def make_kb_tool(kb_id: str):
+    @function_tool
+    async def query_knowledge_base(query: str) -> str:
+        """Query the knowledge base for company policies, rules, pricing, or documentation when the user asks."""
+        logger.info(f"Dynamic KB Tool called for kb_id '{kb_id}': query='{query}'")
+        return await search_knowledge_base(kb_id, query)
+
+    return query_knowledge_base
+
+
 class Assistant(Agent):
-    def __init__(self, name: str, prompt: str) -> None:
+    def __init__(self, name: str, prompt: str, kb_id: str = "") -> None:
+        self.kb_id = kb_id
+        tools = [make_kb_tool(kb_id)] if kb_id else []
         super().__init__(
             llm=inference.LLM(model="google/gemma-4-31b-it"),
-            instructions=voice_instructions(name, prompt),
+            instructions=voice_instructions(name, prompt, has_kb=bool(kb_id)),
+            tools=tools,
         )
 
 
