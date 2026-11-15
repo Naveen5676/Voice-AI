@@ -6,6 +6,7 @@ import { authApi, authErrorMessage, signOut, useGetSessionQuery } from '../featu
 import { agentsApi } from '../features/agents/api/agents-api'
 import { Brand } from './Brand'
 import { StudioIcon } from './StudioIcon'
+import { UsageQuotaBar } from './UsageQuotaBar'
 
 export function WorkspaceLayout() {
   const { data: user } = useGetSessionQuery()
@@ -59,6 +60,7 @@ export function WorkspaceLayout() {
         <Box sx={{ display: { xs: 'block', md: 'none' } }}><Brand /></Box>
         <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' } }}>Your workspace <Box component="span" sx={{ color: '#b7bbae', mx: 1.5 }}>/</Box><Box component="span" sx={{ color: 'text.primary', fontWeight: 500 }}>{isKb ? 'Knowledge Base' : 'Agents'}</Box></Typography>
         <Stack direction="row" alignItems="center" spacing={2}>
+          <UsageQuotaBar />
           <Chip label="Personal workspace" variant="outlined" size="small" sx={{ display: { xs: 'none', sm: 'inline-flex' }, fontSize: 11, borderColor: 'divider', bgcolor: '#fafaf7' }} />
           <Box sx={{ display: { md: 'none' } }}>{logoutButton}</Box>
         </Stack>

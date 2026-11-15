@@ -27,3 +27,21 @@ export type KbItem = {
   status: string
   createdAt: string
 }
+
+export type ProjectUsage = {
+  user: {
+    usedCalls: number
+    limitCalls: number
+    remainingCalls: number
+    usedSeconds: number
+    usedMinutes: number
+    percentage: number
+  }
+  project: {
+    totalCalls: number
+    limitCalls: number
+    remainingCalls: number
+    percentage: number
+    maxCallDurationMinutes: number
+  }
+}

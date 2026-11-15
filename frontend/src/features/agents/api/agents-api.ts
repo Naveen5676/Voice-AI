@@ -1,13 +1,13 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type { AgentFormValues } from 'backend/validator/agent'
-import type { KbItem, KnowledgeBase, SavedAgent } from '../types'
+import type { KbItem, KnowledgeBase, ProjectUsage, SavedAgent } from '../types'
 import type { PromptTemplate } from '../data/prompt-templates'
 
 // ownerId scopes cache entries; the server derives ownership from cookies.
 export const agentsApi = createApi({
   reducerPath: 'agentsApi',
   baseQuery: fetchBaseQuery({ baseUrl: '/api', credentials: 'same-origin' }),
-  tagTypes: ['Agents', 'Agent', 'Templates', 'KnowledgeBases', 'KbNotes'],
+  tagTypes: ['Agents', 'Agent', 'Templates', 'KnowledgeBases', 'KbNotes', 'VoiceUsage'],
   endpoints: (builder) => ({
     listAgents: builder.query<SavedAgent[], string>({
       query: () => '/agents',
@@ -84,6 +84,12 @@ export const agentsApi = createApi({
       }),
       invalidatesTags: (_result, _error, { kbId }) => [{ type: 'KbNotes', id: kbId }, 'KnowledgeBases'],
     }),
+
+    // Project & User Call Usage Quota
+    getUsage: builder.query<ProjectUsage, void>({
+      query: () => '/usage',
+      providesTags: ['VoiceUsage'],
+    }),
   }),
 })
 
@@ -100,6 +106,7 @@ export const {
   useListKbNotesQuery,
   useAddKbNoteMutation,
   useDeleteKbNoteMutation,
+  useGetUsageQuery,
 } = agentsApi
 
 export function agentErrorMessage(error: unknown): string {

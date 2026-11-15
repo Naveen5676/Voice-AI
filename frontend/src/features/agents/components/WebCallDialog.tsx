@@ -1,6 +1,7 @@
-import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import { useWebCall } from '../hooks/useWebCall'
 import { ConversationTranscript } from './ConversationTranscript'
+import { StudioIcon } from '../../../components/StudioIcon'
 
 export function WebCallDialog({ agentId, agentName, open, onClose }: { agentId: string; agentName: string; open: boolean; onClose: () => void }) {
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" aria-labelledby="web-call-title">
@@ -17,7 +18,7 @@ function CallContent({ agentId, agentName, onClose }: { agentId: string; agentNa
     microphone: 'Requesting microphone access...',
     connecting: 'Connecting to the voice room...',
     waiting: 'Waiting for your agent...',
-    active: call.muted ? 'Connected - Microphone muted' : 'Connected - Microphone on',
+    active: call.muted ? 'Connected · Microphone muted (5 min max)' : 'Connected · Microphone active (5 min max)',
     reconnecting: 'Reconnecting to your call...',
     ended: 'Call ended. Your microphone is off.',
     failed: 'Call could not continue. Your microphone is off.',
@@ -48,6 +49,28 @@ function CallContent({ agentId, agentName, onClose }: { agentId: string; agentNa
       </Stack>
       {selectedMissing && <Alert severity="warning" sx={{ mt: 1 }}>The selected microphone is no longer available. Choose another input.</Alert>}
       {(call.deviceError || call.deviceListError) && <Alert severity="warning" sx={{ mt: 1 }}>{call.deviceError || call.deviceListError}</Alert>}
+      {call.phase === 'ended' && (
+        <Box sx={{ mt: 2.5, p: 2, borderRadius: 2.5, bgcolor: '#fbfcf8', border: 1, borderColor: '#dce1d1' }}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
+            <StudioIcon name="check" sx={{ fontSize: 17, color: '#4d6938' }} />
+            <Typography variant="subtitle2" fontWeight={600} fontSize={13.5}>
+              Call Session Ended
+            </Typography>
+            <Chip label="Completed" size="small" sx={{ height: 19, fontSize: 10, bgcolor: '#eef6ea', color: '#446633', ml: 'auto' }} />
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12, lineHeight: 1.6 }}>
+            Your microphone connection was securely closed. Any knowledge base lookups performed during the conversation are reflected in the transcript above.
+          </Typography>
+          <Box sx={{ mt: 1.25, pt: 1, borderTop: 1, borderColor: '#eeefe6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="caption" color="text.secondary">
+              Session limit: <strong>5 minutes maximum</strong>
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Microphone is off
+            </Typography>
+          </Box>
+        </Box>
+      )}
       <Box sx={{ mt: 1.5 }}><Typography variant="caption" color="text.secondary">Live transcript only. Closing this dialog clears the conversation.</Typography></Box>
     </DialogContent>
     <DialogActions sx={{ p: 3, pt: 0, flexWrap: 'wrap', gap: 1 }}>

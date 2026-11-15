@@ -131,6 +131,44 @@ export function createWebCallService(prisma: Database, env: Environment, transpo
       const calls = await prisma.voiceCall.findMany({ where: { cleanupPending: true, status: { in: terminal } }, select: { id: true }, take: 100, orderBy: { createdAt: 'asc' } })
       for (const call of calls) await cleanup(call.id)
     },
+    async usage(ownerId: string) {
+      const userCallsCount = await prisma.voiceCall.count({ where: { ownerId } })
+      const totalProjectCalls = await prisma.voiceCall.count()
+
+      const userCalls = await prisma.voiceCall.findMany({
+        where: { ownerId, startedAt: { not: null }, endedAt: { not: null } },
+        select: { startedAt: true, endedAt: true },
+      })
+      const userSeconds = userCalls.reduce((acc, c) => {
+        if (c.startedAt && c.endedAt) {
+          return acc + Math.max(0, Math.floor((c.endedAt.getTime() - c.startedAt.getTime()) / 1000))
+        }
+        return acc
+      }, 0)
+
+      const totalProjectLimit = 100
+      const userLimit = 50
+      const projectPercentage = Math.min(100, Math.round((totalProjectCalls / totalProjectLimit) * 100))
+      const userPercentage = Math.min(100, Math.round((userCallsCount / userLimit) * 100))
+
+      return {
+        user: {
+          usedCalls: userCallsCount,
+          limitCalls: userLimit,
+          remainingCalls: Math.max(0, userLimit - userCallsCount),
+          usedSeconds: userSeconds,
+          usedMinutes: Math.ceil(userSeconds / 60),
+          percentage: userPercentage,
+        },
+        project: {
+          totalCalls: totalProjectCalls,
+          limitCalls: totalProjectLimit,
+          remainingCalls: Math.max(0, totalProjectLimit - totalProjectCalls),
+          percentage: projectPercentage,
+          maxCallDurationMinutes: Math.round(env.WEB_CALL_MAX_SECONDS / 60),
+        },
+      }
+    },
   }
 }
 
