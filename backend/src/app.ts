@@ -37,7 +37,7 @@ export function createApp(auth: Auth, env: Environment, database: Database, voic
   app.use(express.json({ limit: '96kb' }))
   app.use('/api', accountRoutes(auth))
   app.use('/api', agentRoutes(auth, createAgentService(database), env.BETTER_AUTH_URL))
-  app.use('/api', kbRoutes(auth, createKbService(database, env.VECTOR_SERVICE_URL), env.BETTER_AUTH_URL))
+  app.use('/api', kbRoutes(auth, createKbService(database, env.VECTOR_SERVICE_URL, env.VECTOR_SERVICE_SECRET ?? env.AGENT_SERVICE_SECRET), env.BETTER_AUTH_URL))
   app.use('/api', webCallRoutes(auth, calls, env.BETTER_AUTH_URL))
   app.use('/api/internal/web-calls', internalWebCallRoutes(calls, env.AGENT_SERVICE_SECRET))
   app.use('/api', (_request, response) => response.status(404).json({ message: 'API endpoint not found.' }))

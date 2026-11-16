@@ -20,6 +20,7 @@ const schema = z.object({
   WEB_CALL_JOIN_SECONDS: z.coerce.number().int().min(10).max(120).default(45),
   WEB_CALL_READY_SECONDS: z.coerce.number().int().min(10).max(120).default(30),
   VECTOR_SERVICE_URL: httpUrl.default('http://127.0.0.1:8010'),
+  VECTOR_SERVICE_SECRET: z.preprocess((value) => value === '' ? undefined : value, z.string().min(16).optional()),
 }).superRefine((env, context) => {
   if (env.NODE_ENV === 'production' && !env.BETTER_AUTH_URL.startsWith('https://')) {
     context.addIssue({ code: 'custom', path: ['BETTER_AUTH_URL'], message: 'HTTPS is required in production' })

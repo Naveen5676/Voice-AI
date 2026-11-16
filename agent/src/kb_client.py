@@ -6,6 +6,7 @@ import aiohttp
 logger = logging.getLogger("agent.kb_client")
 
 VECTOR_SERVICE_URL = os.environ.get("VECTOR_SERVICE_URL", "http://127.0.0.1:8010")
+VECTOR_SERVICE_SECRET = os.environ.get("VECTOR_SERVICE_SECRET") or os.environ.get("AGENT_SERVICE_SECRET")
 
 
 async def search_knowledge_base(kb_id: str, query: str, top_k: int = 3) -> str:
@@ -19,11 +20,14 @@ async def search_knowledge_base(kb_id: str, query: str, top_k: int = 3) -> str:
         "kb_id": kb_id,
         "top_k": top_k,
     }
+    headers = {"Content-Type": "application/json"}
+    if VECTOR_SERVICE_SECRET:
+        headers["X-Service-Key"] = VECTOR_SERVICE_SECRET
 
     try:
         async with (
             aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=4)) as session,
-            session.post(url, json=payload) as response,
+            session.post(url, json=payload, headers=headers) as response,
         ):
             if response.status == 200:
                 data = await response.json()

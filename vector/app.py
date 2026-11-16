@@ -4,12 +4,15 @@ from pathlib import Path
 from typing import List, Optional
 
 import chromadb
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("vector_service")
+
+VECTOR_SERVICE_SECRET = os.environ.get("VECTOR_SERVICE_SECRET") or os.environ.get("AGENT_SERVICE_SECRET")
 
 DB_DIR = Path(__file__).resolve().parent / "storage"
 DB_DIR.mkdir(parents=True, exist_ok=True)
@@ -22,6 +25,16 @@ collection = chroma_client.get_or_create_collection(
 )
 
 app = FastAPI(title="Voice Studio Vector Service", version="1.0.0")
+
+
+@app.middleware("http")
+async def verify_service_secret(request: Request, call_next):
+    if VECTOR_SERVICE_SECRET and request.url.path not in ["/health", "/docs", "/openapi.json"]:
+        auth_key = request.headers.get("X-Service-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
+        if auth_key != VECTOR_SERVICE_SECRET:
+            logger.warning(f"Unauthorized vector request to {request.url.path}")
+            return JSONResponse(status_code=401, content={"detail": "Unauthorized: invalid or missing vector service secret"})
+    return await call_next(request)
 
 
 class IndexTextRequest(BaseModel):

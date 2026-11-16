@@ -2,12 +2,17 @@ import type { Database } from '../db/prisma.js'
 import { HttpError } from '../lib/http-error.js'
 import type { CreateKbNoteValues, CreateKnowledgeBaseValues } from '../validator/kb.validator.js'
 
-export function createKbService(prisma: Database, vectorServiceUrl: string) {
+export function createKbService(prisma: Database, vectorServiceUrl: string, vectorServiceSecret?: string) {
+  const getHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...(vectorServiceSecret ? { 'X-Service-Key': vectorServiceSecret } : {}),
+  })
+
   async function syncVectorIndex(text: string, itemId: string, kbId: string) {
     try {
       const response = await fetch(`${vectorServiceUrl}/index-text`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({ text, item_id: itemId, kb_id: kbId }),
       })
       if (!response.ok) {
@@ -23,7 +28,7 @@ export function createKbService(prisma: Database, vectorServiceUrl: string) {
     try {
       await fetch(`${vectorServiceUrl}/delete`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({ item_id: itemId, kb_id: kbId }),
       })
     } catch (cause) {
