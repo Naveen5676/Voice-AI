@@ -1,3 +1,4 @@
+import hmac
 import logging
 import os
 from pathlib import Path
@@ -13,6 +14,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 logger = logging.getLogger("vector_service")
 
 VECTOR_SERVICE_SECRET = os.environ.get("VECTOR_SERVICE_SECRET") or os.environ.get("AGENT_SERVICE_SECRET")
+IS_PROD = os.environ.get("NODE_ENV") == "production" or os.environ.get("ENV") == "production"
 
 DB_DIR = Path(__file__).resolve().parent / "storage"
 DB_DIR.mkdir(parents=True, exist_ok=True)
@@ -24,16 +26,38 @@ collection = chroma_client.get_or_create_collection(
     metadata={"hnsw:space": "cosine"}
 )
 
-app = FastAPI(title="Voice Studio Vector Service", version="1.0.0")
+app = FastAPI(
+    title="Voice Studio Vector Service",
+    version="1.0.0",
+    docs_url=None if IS_PROD else "/docs",
+    redoc_url=None if IS_PROD else "/redoc",
+    openapi_url=None if IS_PROD else "/openapi.json",
+)
 
 
 @app.middleware("http")
 async def verify_service_secret(request: Request, call_next):
-    if VECTOR_SERVICE_SECRET and request.url.path not in ["/health", "/docs", "/openapi.json"]:
-        auth_key = request.headers.get("X-Service-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
-        if auth_key != VECTOR_SERVICE_SECRET:
-            logger.warning(f"Unauthorized vector request to {request.url.path}")
-            return JSONResponse(status_code=401, content={"detail": "Unauthorized: invalid or missing vector service secret"})
+    # Allow public health check endpoint
+    if request.url.path == "/health":
+        return await call_next(request)
+
+    # In development, allow interactive documentation
+    if not IS_PROD and request.url.path in ["/docs", "/openapi.json", "/redoc"]:
+        return await call_next(request)
+
+    if not VECTOR_SERVICE_SECRET:
+        if IS_PROD:
+            logger.error("VECTOR_SERVICE_SECRET is not configured in production; rejecting request")
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "Vector service secret is not configured on server"}
+            )
+        return await call_next(request)
+
+    auth_key = request.headers.get("X-Service-Key") or request.headers.get("Authorization", "").replace("Bearer ", "").strip()
+    if not auth_key or not hmac.compare_digest(auth_key, VECTOR_SERVICE_SECRET):
+        logger.warning(f"Unauthorized vector request to {request.url.path}")
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized: invalid or missing vector service secret"})
     return await call_next(request)
 
 

@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import express from 'express'
+import cors from 'cors'
 import helmet from 'helmet'
 import { toNodeHandler } from 'better-auth/node'
 import type { Environment } from './config/env.js'
@@ -16,6 +17,7 @@ import { createLivekitService, type VoiceTransport } from './services/livekit.se
 import { createWebCallService } from './services/web-call.service.js'
 import { webCallRoutes } from './routes/web-calls.js'
 import { internalWebCallRoutes } from './routes/internal-web-calls.js'
+import { apiRateLimiter } from './middleware/rate-limiter.js'
 
 export function createApp(auth: Auth, env: Environment, database: Database, voiceTransport?: VoiceTransport) {
   const app = express()
@@ -23,8 +25,52 @@ export function createApp(auth: Auth, env: Environment, database: Database, voic
   app.locals.webCalls = calls
   app.disable('x-powered-by')
   app.set('trust proxy', env.TRUST_PROXY_HOPS)
-  app.use(helmet({ strictTransportSecurity: env.NODE_ENV === 'production' ? undefined : false }))
+
+  const livekitHosts = ['https://*.livekit.cloud', 'wss://*.livekit.cloud']
+  if (env.LIVEKIT_URL) {
+    try {
+      const parsedLk = new URL(env.LIVEKIT_URL)
+      livekitHosts.push(parsedLk.origin)
+      livekitHosts.push(parsedLk.origin.replace(/^http/, 'ws'))
+    } catch {
+      // ignore parse failure
+    }
+  }
+
+  app.use(
+    helmet({
+      strictTransportSecurity: env.NODE_ENV === 'production' ? undefined : false,
+      contentSecurityPolicy: env.NODE_ENV === 'production' ? {
+        directives: {
+          defaultSrc: ["'self'"],
+          connectSrc: ["'self'", ...livekitHosts],
+          mediaSrc: ["'self'", 'blob:'],
+          workerSrc: ["'self'", 'blob:'],
+          imgSrc: ["'self'", 'data:', 'blob:'],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          fontSrc: ["'self'", 'data:'],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+          frameAncestors: ["'none'"],
+        },
+      } : false,
+    })
+  )
+
+  app.use(
+    cors({
+      origin: env.BETTER_AUTH_URL,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    })
+  )
+
   app.get('/api/health', (_request, response) => response.json({ status: 'ok' }))
+
+  app.use('/api', apiRateLimiter)
   app.use('/api', (request, response, next) => {
     response.setHeader('Cache-Control', 'no-store')
     // Overwrite any client-supplied value using Express's trusted proxy rules.
