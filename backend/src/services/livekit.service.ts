@@ -19,7 +19,7 @@ export function createLivekitService(env: Environment): VoiceTransport | undefin
       try {
         return (await dispatches.createDispatch(call.roomName, env.LIVEKIT_AGENT_NAME, {
           metadata,
-          deployment: env.LIVEKIT_AGENT_DEPLOYMENT ?? (env.NODE_ENV === 'production' ? 'production' : 'voice-studio-local'),
+          deployment: env.LIVEKIT_AGENT_DEPLOYMENT ?? (env.NODE_ENV === 'production' ? 'voice-studio-production' : 'voice-studio-local'),
         })).id
       } catch (error) {
         // A timed-out response can still have created the job. Never blindly retry.
