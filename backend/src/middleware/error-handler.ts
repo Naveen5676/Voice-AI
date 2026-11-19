@@ -22,6 +22,6 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, _request, resp
     return
   }
   // Do not expose SQL errors, connection strings, or request bodies to clients.
-  console.error('An API request failed.')
+  console.error('An API request failed:', error)
   response.status(500).json({ message: 'Something went wrong. Please try again.' })
 }
