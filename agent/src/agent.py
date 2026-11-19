@@ -99,5 +99,38 @@ async def my_agent(ctx: JobContext):
         ctx.shutdown(reason="invalid voice job configuration")
 
 
+def start_health_server():
+    port_str = os.environ.get("PORT")
+    if not port_str:
+        return
+    try:
+        port = int(port_str)
+    except ValueError:
+        return
+
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    import threading
+
+    class HealthHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"OK")
+
+        def do_HEAD(self):
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, format, *args):
+            pass
+
+    httpd = HTTPServer(("0.0.0.0", port), HealthHandler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    logger.info(f"Health check server listening on port {port}")
+
+
 if __name__ == "__main__":
+    start_health_server()
     cli.run_app(server)
