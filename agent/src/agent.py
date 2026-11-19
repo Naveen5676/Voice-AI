@@ -66,8 +66,15 @@ def create_session() -> AgentSession:
     )
 
 
+job_executor = os.environ.get("JOB_EXECUTOR_TYPE", "thread")
 num_idle = int(os.environ.get("NUM_IDLE_PROCESSES", "0"))
-server = AgentServer(num_idle_processes=num_idle)
+load_threshold = float(os.environ.get("LOAD_THRESHOLD", "3.0"))
+
+server = AgentServer(
+    job_executor_type=job_executor,
+    num_idle_processes=num_idle,
+    load_threshold=load_threshold,
+)
 
 
 @server.rtc_session(agent_name=os.environ.get("LIVEKIT_AGENT_NAME", "my-agent"))
