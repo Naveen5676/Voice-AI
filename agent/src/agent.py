@@ -23,6 +23,8 @@ from config import BackendConfig
 from kb_client import search_knowledge_base
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+load_dotenv()
 logger = logging.getLogger("agent")
 
 
@@ -66,7 +68,15 @@ def create_session() -> AgentSession:
     )
 
 
-server = AgentServer()
+job_executor = os.environ.get("JOB_EXECUTOR_TYPE", "thread")
+num_idle = int(os.environ.get("NUM_IDLE_PROCESSES", "0"))
+load_threshold = float(os.environ.get("LOAD_THRESHOLD", "3.0"))
+
+server = AgentServer(
+    job_executor_type=job_executor,
+    num_idle_processes=num_idle,
+    load_threshold=load_threshold,
+)
 
 
 @server.rtc_session(agent_name=os.environ.get("LIVEKIT_AGENT_NAME", "my-agent"))
@@ -101,7 +111,7 @@ async def my_agent(ctx: JobContext):
 
 
 def start_health_server():
-    port_str = os.environ.get("PORT")
+    port_str = os.environ.get("PORT", "8080")
     if not port_str:
         return
     try:

@@ -12,6 +12,7 @@
     "test": "npm run test -w backend",
     "test:ui": "npm run test -w frontend",
     "setup:local": "node scripts/setup-local.mjs",
+    "start:agent": "python agent/src/agent.py start",
     "db:migrate": "npm run db:migrate -w backend"
   },
   "devDependencies": { "concurrently": "^9.2.1" }
