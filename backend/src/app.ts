@@ -59,9 +59,11 @@ export function createApp(auth: Auth, env: Environment, database: Database, voic
     })
   )
 
+  const authOrigin = new URL(env.BETTER_AUTH_URL).origin
+
   app.use(
     cors({
-      origin: env.BETTER_AUTH_URL,
+      origin: authOrigin,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],

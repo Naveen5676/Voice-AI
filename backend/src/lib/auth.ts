@@ -6,13 +6,14 @@ import type { Environment } from '../config/env.js'
 import { validateAuth } from '../middleware/validate-auth.js'
 
 export function authOptions(database: Database, env: Environment) {
+  const origin = new URL(env.BETTER_AUTH_URL).origin
   return {
     appName: 'Voice Studio',
     database: prismaAdapter(database, { provider: 'postgresql', transaction: true }),
     secret: env.BETTER_AUTH_SECRET,
-    baseURL: env.BETTER_AUTH_URL,
+    baseURL: origin,
     basePath: '/api/auth',
-    trustedOrigins: [new URL(env.BETTER_AUTH_URL).origin],
+    trustedOrigins: [origin],
     hooks: { before: validateAuth },
     emailAndPassword: {
       enabled: true,
