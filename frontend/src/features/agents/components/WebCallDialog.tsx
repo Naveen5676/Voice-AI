@@ -17,7 +17,7 @@ function CallContent({ agentId, agentName, onClose }: { agentId: string; agentNa
     idle: 'Your microphone is off. Start when you are ready.',
     microphone: 'Requesting microphone access...',
     connecting: 'Connecting to the voice room...',
-    waiting: 'Waiting for your agent...',
+    waiting: 'Connecting to your agent (warming up if idle)...',
     active: call.muted ? 'Connected · Microphone muted (5 min max)' : 'Connected · Microphone active (5 min max)',
     reconnecting: 'Reconnecting to your call...',
     ended: 'Call ended. Your microphone is off.',

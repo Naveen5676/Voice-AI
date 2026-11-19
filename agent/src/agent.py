@@ -66,7 +66,8 @@ def create_session() -> AgentSession:
     )
 
 
-server = AgentServer()
+num_idle = int(os.environ.get("NUM_IDLE_PROCESSES", "0"))
+server = AgentServer(num_idle_processes=num_idle)
 
 
 @server.rtc_session(agent_name=os.environ.get("LIVEKIT_AGENT_NAME", "my-agent"))
