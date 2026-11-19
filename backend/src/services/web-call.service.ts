@@ -58,6 +58,20 @@ export function createWebCallService(prisma: Database, env: Environment, transpo
         }
         const agent = await tx.agent.findFirst({ where: { id: agentId, ownerId } })
         if (!agent) throw new HttpError(404, 'Agent not found.')
+
+        // Automatically expire abandoned calls whose joinDeadline or expiresAt has passed
+        await tx.voiceCall.updateMany({
+          where: {
+            ownerId,
+            status: { in: live },
+            OR: [
+              { expiresAt: { lte: now } },
+              { joinDeadline: { lte: now }, status: { in: ['pending', 'connecting'] } },
+            ],
+          },
+          data: { status: 'expired', endedAt: now, cleanupPending: true },
+        })
+
         if (await tx.voiceCall.count({ where: { ownerId, createdAt: { gt: new Date(now.getTime() - 60_000) } } }) >= 5) throw new HttpError(429, 'Too many call attempts. Wait a minute before trying again.')
         if (await tx.voiceCall.count({ where: { ownerId, status: { in: live } } })) throw new HttpError(409, 'End your current call before starting another.')
         const call = await tx.voiceCall.create({ data: {
@@ -92,6 +106,15 @@ export function createWebCallService(prisma: Database, env: Environment, transpo
       await owned(ownerId, id)
       await finish(id, 'ended')
       return publicStatus(await owned(ownerId, id))
+    },
+    async endActive(ownerId: string) {
+      const activeCalls = await prisma.voiceCall.findMany({
+        where: { ownerId, status: { in: live } },
+      })
+      for (const call of activeCalls) {
+        await finish(call.id, 'ended')
+      }
+      return { endedCount: activeCalls.length }
     },
     async context(id: string, roomName: string) {
       enabled()

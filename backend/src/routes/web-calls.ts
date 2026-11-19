@@ -23,6 +23,9 @@ export function webCallRoutes(auth: Auth, service: WebCallService, publicUrl: st
   router.get('/usage', session, async (_request, response) => {
     response.json(await service.usage(response.locals.user.id))
   })
+  router.post('/web-calls/active/end', session, origin, async (_request, response) => {
+    response.json(await service.endActive(response.locals.user.id))
+  })
   router.post('/web-calls/:callId/end', session, origin, async (request, response) => {
     const { callId } = callIdSchema.parse(request.params)
     response.json(await service.end(response.locals.user.id, callId))

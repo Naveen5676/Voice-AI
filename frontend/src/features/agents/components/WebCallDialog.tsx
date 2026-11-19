@@ -34,7 +34,22 @@ function CallContent({ agentId, agentName, onClose }: { agentId: string; agentNa
         <Typography variant="body2" color="text.secondary">Uses your saved instructions</Typography>
         {busy && <CircularProgress size={28} />}
         <Typography role="status" variant="body2" sx={{ textAlign: 'center' }}>{labels[call.phase]}</Typography>
-        {call.error && <Alert severity="error">{call.error}</Alert>}
+        {call.error && (
+          <Stack spacing={1} alignItems="center" sx={{ width: '100%' }}>
+            <Alert severity="error" sx={{ width: '100%' }}>{call.error}</Alert>
+            <Button
+              variant="outlined"
+              color="warning"
+              size="small"
+              onClick={async () => {
+                await call.cancelPrevious()
+                void call.start(agentId)
+              }}
+            >
+              Reset active call & Retry
+            </Button>
+          </Stack>
+        )}
         {call.audioBlocked && <Button variant="outlined" onClick={() => void call.playAudio()}>Enable speaker audio</Button>}
       </Stack>
       <ConversationTranscript messages={call.messages} agentName={agentName} live={running} />

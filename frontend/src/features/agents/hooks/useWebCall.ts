@@ -33,5 +33,16 @@ export function useWebCall() {
     window.addEventListener('pagehide', stop)
     return () => { window.removeEventListener('pagehide', stop); controller.stop() }
   }, [controller])
-  return { ...state, ...microphones, start: (agentId: string) => controller.start(agentId), stop: () => controller.stop(), mute: () => controller.mute(), playAudio: () => controller.playAudio(), selectMicrophone: (deviceId: string) => controller.selectMicrophone(deviceId) }
+  return {
+    ...state,
+    ...microphones,
+    start: (agentId: string) => controller.start(agentId),
+    stop: () => controller.stop(),
+    cancelPrevious: async () => {
+      await request('/api/web-calls/active/end', { method: 'POST' })
+    },
+    mute: () => controller.mute(),
+    playAudio: () => controller.playAudio(),
+    selectMicrophone: (deviceId: string) => controller.selectMicrophone(deviceId),
+  }
 }
