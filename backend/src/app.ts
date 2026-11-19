@@ -74,7 +74,7 @@ export function createApp(auth: Auth, env: Environment, database: Database, voic
   app.get('/api/agent-worker/status', async (_request, response) => {
     if (!env.LIVEKIT_AGENT_URL) return response.json({ ready: true, configured: false })
     try {
-      const res = await fetch(env.LIVEKIT_AGENT_URL, { signal: AbortSignal.timeout(4000) })
+      const res = await fetch(env.LIVEKIT_AGENT_URL, { signal: AbortSignal.timeout(6000) })
       response.json({ ready: res.ok, configured: true })
     } catch {
       response.json({ ready: false, configured: true })

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import { useWebCall } from '../hooks/useWebCall'
 import { ConversationTranscript } from './ConversationTranscript'
@@ -11,6 +12,46 @@ export function WebCallDialog({ agentId, agentName, open, onClose }: { agentId: 
 
 function CallContent({ agentId, agentName, onClose }: { agentId: string; agentName: string; onClose: () => void }) {
   const call = useWebCall()
+  const [workerStatus, setWorkerStatus] = useState<'checking' | 'warming_up' | 'ready'>('checking')
+  const [wakeSeconds, setWakeSeconds] = useState(0)
+
+  useEffect(() => {
+    let active = true
+    let pollTimer: ReturnType<typeof setTimeout>
+    let secondTimer: ReturnType<typeof setInterval>
+
+    async function checkWorker() {
+      try {
+        const res = await fetch('/api/agent-worker/status', { credentials: 'same-origin' })
+        const data = (await res.json().catch(() => ({}))) as { ready?: boolean; configured?: boolean }
+        if (!active) return
+
+        if (!data.configured || data.ready) {
+          setWorkerStatus('ready')
+        } else {
+          setWorkerStatus('warming_up')
+          pollTimer = setTimeout(checkWorker, 3000)
+        }
+      } catch {
+        if (!active) return
+        setWorkerStatus('warming_up')
+        pollTimer = setTimeout(checkWorker, 3000)
+      }
+    }
+
+    void checkWorker()
+
+    secondTimer = setInterval(() => {
+      setWakeSeconds((s) => s + 1)
+    }, 1000)
+
+    return () => {
+      active = false
+      clearTimeout(pollTimer)
+      clearInterval(secondTimer)
+    }
+  }, [])
+
   const busy = ['microphone', 'connecting', 'waiting', 'reconnecting'].includes(call.phase)
   const running = busy || call.phase === 'active'
   const labels = {
@@ -32,6 +73,33 @@ function CallContent({ agentId, agentName, onClose }: { agentId: string; agentNa
       <Stack spacing={1} alignItems="center" sx={{ pt: 1, pb: 2 }}>
         <Typography variant="h6" sx={{ overflowWrap: 'anywhere', textAlign: 'center' }}>{agentName}</Typography>
         <Typography variant="body2" color="text.secondary">Uses your saved instructions</Typography>
+
+        {workerStatus === 'warming_up' && (
+          <Alert
+            severity="warning"
+            icon={<CircularProgress size={20} />}
+            sx={{ width: '100%', textAlign: 'left', mt: 1 }}
+          >
+            <Typography variant="subtitle2" fontWeight={600}>
+              Starting up Voice Agent server... ({wakeSeconds}s)
+            </Typography>
+            <Typography variant="body2" sx={{ fontSize: 13, mt: 0.5 }}>
+              Free-tier cloud servers sleep during inactivity. We are waking up the agent worker now (~30–45s). You will be able to start the call as soon as the server responds.
+            </Typography>
+          </Alert>
+        )}
+
+        {workerStatus === 'ready' && !running && call.phase === 'idle' && (
+          <Chip
+            icon={<StudioIcon name="check" sx={{ fontSize: 15 }} />}
+            label="Agent worker online & ready"
+            size="small"
+            color="success"
+            variant="outlined"
+            sx={{ height: 22, fontSize: 11, my: 0.5 }}
+          />
+        )}
+
         {busy && <CircularProgress size={28} />}
         <Typography role="status" variant="body2" sx={{ textAlign: 'center' }}>{labels[call.phase]}</Typography>
         {call.error && (
@@ -92,7 +160,21 @@ function CallContent({ agentId, agentName, onClose }: { agentId: string; agentNa
       {running ? <>
         <Button disabled={call.phase !== 'active' || call.microphoneChanging} onClick={() => void call.mute()}>{call.muted ? 'Unmute' : 'Mute'}</Button>
         <Button variant="contained" color="error" onClick={call.stop}>End call</Button>
-      </> : <Button variant="contained" disabled={!agentId || call.loadingDevices} onClick={() => void call.start(agentId)}>{call.phase === 'idle' ? 'Start call' : 'Start new call'}</Button>}
+      </> : (
+        <Button
+          variant="contained"
+          disabled={!agentId || call.loadingDevices || workerStatus !== 'ready'}
+          onClick={() => void call.start(agentId)}
+        >
+          {workerStatus === 'checking'
+            ? 'Checking agent...'
+            : workerStatus === 'warming_up'
+            ? 'Waking up agent...'
+            : call.phase === 'idle'
+            ? 'Start call'
+            : 'Start new call'}
+        </Button>
+      )}
       <Button color="inherit" onClick={close}>Close</Button>
     </DialogActions>
   </>

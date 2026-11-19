@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Alert, Avatar, Box, Button, Chip, Divider, Stack, Typography } from '@mui/material'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { useAppDispatch } from '../app/store'
@@ -15,11 +15,6 @@ export function WorkspaceLayout() {
   const location = useLocation()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    // Automatically warm up the agent worker when the user enters the workspace
-    void fetch('/api/agent-worker/status', { credentials: 'same-origin' }).catch(() => {})
-  }, [])
 
   const isAgents = !location.pathname.startsWith('/knowledge-bases')
   const isKb = location.pathname.startsWith('/knowledge-bases')
