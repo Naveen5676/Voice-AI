@@ -64,6 +64,7 @@ def create_session() -> AgentSession:
             interruption={"mode": "adaptive"},
             preemptive_generation={"enabled": True},
         ),
+        user_away_timeout=15.0,
         expressive=True,
     )
 

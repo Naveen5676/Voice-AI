@@ -72,6 +72,17 @@ async def run_voice_call(ctx, backend, make_session, make_assistant):
         stage = "pipeline"
         session = make_session()
 
+        def on_user_state(event):
+            if getattr(event, "new_state", None) == "away":
+                try:
+                    session.generate_reply(
+                        instructions="The user has been silent for a moment. Briefly and politely ask if they are still there or need any help."
+                    )
+                except Exception:
+                    logger.warning("Failed to trigger inactivity prompt")
+
+        session.on("user_state_changed", on_user_state)
+
         def session_closed(event):
             nonlocal failed
             failed = event.error is not None
@@ -119,11 +130,12 @@ async def run_voice_call(ctx, backend, make_session, make_assistant):
     except Exception as error:
         failed = True
         logger.error(
-            "Voice call failed",
+            f"Voice call failed: {error}",
             extra={
                 "call_id": dispatch.call_id,
                 "stage": stage,
                 "error_type": type(error).__name__,
+                "error_details": str(error),
                 "frames": [
                     f"{Path(frame.filename).name}:{frame.lineno}"
                     for frame in extract_tb(error.__traceback__)
