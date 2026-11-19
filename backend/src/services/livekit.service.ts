@@ -16,12 +16,17 @@ export function createLivekitService(env: Environment): VoiceTransport | undefin
   return {
     async dispatch(call) {
       const metadata = JSON.stringify({ version: 1, callId: call.id, roomName: call.roomName })
+      const deployment = env.LIVEKIT_AGENT_DEPLOYMENT ?? (env.NODE_ENV === 'production' ? 'voice-studio-production' : 'voice-studio-local')
+      console.log(`[LiveKit] Dispatching to room "${call.roomName}", agent: "${env.LIVEKIT_AGENT_NAME}", deployment: "${deployment}"`)
       try {
-        return (await dispatches.createDispatch(call.roomName, env.LIVEKIT_AGENT_NAME, {
+        const dispatch = await dispatches.createDispatch(call.roomName, env.LIVEKIT_AGENT_NAME, {
           metadata,
-          deployment: env.LIVEKIT_AGENT_DEPLOYMENT ?? (env.NODE_ENV === 'production' ? 'voice-studio-production' : 'voice-studio-local'),
-        })).id
+          deployment,
+        })
+        console.log(`[LiveKit] Dispatch created successfully (id: ${dispatch.id})`)
+        return dispatch.id
       } catch (error) {
+        console.error('[LiveKit] createDispatch failed:', error)
         // A timed-out response can still have created the job. Never blindly retry.
         const existing = await dispatches.listDispatch(call.roomName)
         const match = existing.find((entry) => entry.agentName === env.LIVEKIT_AGENT_NAME && entry.metadata === metadata)

@@ -16,6 +16,7 @@ const schema = z.object({
   AGENT_SERVICE_SECRET: z.preprocess((value) => value === '' ? undefined : value, z.string().min(32).optional()),
   LIVEKIT_AGENT_NAME: z.string().min(1).default('my-agent'),
   LIVEKIT_AGENT_DEPLOYMENT: z.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/, 'Use a lowercase deployment name').optional(),
+  LIVEKIT_AGENT_URL: httpUrl.optional(),
   WEB_CALL_MAX_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
   WEB_CALL_JOIN_SECONDS: z.coerce.number().int().min(10).max(120).default(45),
   WEB_CALL_READY_SECONDS: z.coerce.number().int().min(10).max(120).default(30),

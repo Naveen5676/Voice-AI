@@ -86,6 +86,10 @@ export function createWebCallService(prisma: Database, env: Environment, transpo
       })
       try {
         if (created) {
+          if (env.LIVEKIT_AGENT_URL) {
+            void fetch(env.LIVEKIT_AGENT_URL).catch(() => {})
+          }
+          console.log(`[WebCall] Starting call ${call.id} for agent "${call.agentName}" (room: ${call.roomName})`)
           const dispatchId = await rtc.dispatch(call)
           await prisma.voiceCall.updateMany({ where: { id: call.id, status: { in: live } }, data: { dispatchId } })
           await prisma.voiceCall.updateMany({ where: { id: call.id, status: 'pending' }, data: { status: 'connecting' } })

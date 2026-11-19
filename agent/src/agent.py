@@ -71,6 +71,7 @@ server = AgentServer()
 
 @server.rtc_session(agent_name=os.environ.get("LIVEKIT_AGENT_NAME", "my-agent"))
 async def my_agent(ctx: JobContext):
+    logger.info(f"[AgentWorker] Received incoming job for room: {ctx.room.name}")
     ctx.log_context_fields = {"room": ctx.room.name}
     # Fixtures are accepted only in SDK simulation jobs or local console startup.
     # Missing production dispatch metadata never selects the generic assistant.
