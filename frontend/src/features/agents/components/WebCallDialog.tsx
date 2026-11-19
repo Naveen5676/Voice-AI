@@ -5,20 +5,13 @@ import { ConversationTranscript } from './ConversationTranscript'
 import { StudioIcon } from '../../../components/StudioIcon'
 
 export function WebCallDialog({ agentId, agentName, open, onClose }: { agentId: string; agentName: string; open: boolean; onClose: () => void }) {
-  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" aria-labelledby="web-call-title">
-    {open && <CallContent key={agentId} agentId={agentId} agentName={agentName} onClose={onClose} />}
-  </Dialog>
-}
-
-function CallContent({ agentId, agentName, onClose }: { agentId: string; agentName: string; onClose: () => void }) {
-  const call = useWebCall()
-  const [workerStatus, setWorkerStatus] = useState<'checking' | 'warming_up' | 'ready'>('checking')
+  const [ready, setReady] = useState<boolean | null>(null)
   const [wakeSeconds, setWakeSeconds] = useState(0)
 
   useEffect(() => {
+    if (!open) return
     let active = true
     let pollTimer: ReturnType<typeof setTimeout>
-    let secondTimer: ReturnType<typeof setInterval>
 
     async function checkWorker() {
       try {
@@ -27,21 +20,21 @@ function CallContent({ agentId, agentName, onClose }: { agentId: string; agentNa
         if (!active) return
 
         if (!data.configured || data.ready) {
-          setWorkerStatus('ready')
+          setReady(true)
         } else {
-          setWorkerStatus('warming_up')
+          setReady(false)
           pollTimer = setTimeout(checkWorker, 3000)
         }
       } catch {
         if (!active) return
-        setWorkerStatus('warming_up')
+        setReady(false)
         pollTimer = setTimeout(checkWorker, 3000)
       }
     }
 
     void checkWorker()
 
-    secondTimer = setInterval(() => {
+    const secondTimer = setInterval(() => {
       setWakeSeconds((s) => s + 1)
     }, 1000)
 
@@ -50,15 +43,59 @@ function CallContent({ agentId, agentName, onClose }: { agentId: string; agentNa
       clearTimeout(pollTimer)
       clearInterval(secondTimer)
     }
-  }, [])
+  }, [open])
 
+  if (!open) return null
+
+  // If worker is still sleeping / waking up, show separate dedicated Warmup Modal
+  if (ready === false || ready === null) {
+    return (
+      <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" aria-labelledby="agent-warmup-title">
+        <DialogTitle id="agent-warmup-title" sx={{ textAlign: 'center', pb: 1 }}>
+          Waking Up Voice Agent
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2.5} alignItems="center" sx={{ py: 2 }}>
+            <CircularProgress size={44} thickness={4} />
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="subtitle1" fontWeight={600}>
+                {ready === null ? 'Checking agent status...' : `Starting worker... (${wakeSeconds}s)`}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, maxWidth: 320, lineHeight: 1.5 }}>
+                Free-tier cloud servers sleep automatically after 15 minutes of inactivity. We are waking up your Python agent worker now (~30–45s).
+              </Typography>
+              <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1 }}>
+                The call window will open automatically once the agent is online.
+              </Typography>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', pb: 2.5 }}>
+          <Button color="inherit" onClick={onClose}>
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+    )
+  }
+
+  // Once the agent is confirmed running, go directly to the original call modal
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" aria-labelledby="web-call-title">
+      <CallContent key={agentId} agentId={agentId} agentName={agentName} onClose={onClose} />
+    </Dialog>
+  )
+}
+
+function CallContent({ agentId, agentName, onClose }: { agentId: string; agentName: string; onClose: () => void }) {
+  const call = useWebCall()
   const busy = ['microphone', 'connecting', 'waiting', 'reconnecting'].includes(call.phase)
   const running = busy || call.phase === 'active'
   const labels = {
     idle: 'Your microphone is off. Start when you are ready.',
     microphone: 'Requesting microphone access...',
     connecting: 'Connecting to the voice room...',
-    waiting: 'Connecting to your agent (warming up if idle)...',
+    waiting: 'Connecting to your agent...',
     active: call.muted ? 'Connected · Microphone muted (5 min max)' : 'Connected · Microphone active (5 min max)',
     reconnecting: 'Reconnecting to your call...',
     ended: 'Call ended. Your microphone is off.',
@@ -73,33 +110,6 @@ function CallContent({ agentId, agentName, onClose }: { agentId: string; agentNa
       <Stack spacing={1} alignItems="center" sx={{ pt: 1, pb: 2 }}>
         <Typography variant="h6" sx={{ overflowWrap: 'anywhere', textAlign: 'center' }}>{agentName}</Typography>
         <Typography variant="body2" color="text.secondary">Uses your saved instructions</Typography>
-
-        {workerStatus === 'warming_up' && (
-          <Alert
-            severity="warning"
-            icon={<CircularProgress size={20} />}
-            sx={{ width: '100%', textAlign: 'left', mt: 1 }}
-          >
-            <Typography variant="subtitle2" fontWeight={600}>
-              Starting up Voice Agent server... ({wakeSeconds}s)
-            </Typography>
-            <Typography variant="body2" sx={{ fontSize: 13, mt: 0.5 }}>
-              Free-tier cloud servers sleep during inactivity. We are waking up the agent worker now (~30–45s). You will be able to start the call as soon as the server responds.
-            </Typography>
-          </Alert>
-        )}
-
-        {workerStatus === 'ready' && !running && call.phase === 'idle' && (
-          <Chip
-            icon={<StudioIcon name="check" sx={{ fontSize: 15 }} />}
-            label="Agent worker online & ready"
-            size="small"
-            color="success"
-            variant="outlined"
-            sx={{ height: 22, fontSize: 11, my: 0.5 }}
-          />
-        )}
-
         {busy && <CircularProgress size={28} />}
         <Typography role="status" variant="body2" sx={{ textAlign: 'center' }}>{labels[call.phase]}</Typography>
         {call.error && (
@@ -160,21 +170,7 @@ function CallContent({ agentId, agentName, onClose }: { agentId: string; agentNa
       {running ? <>
         <Button disabled={call.phase !== 'active' || call.microphoneChanging} onClick={() => void call.mute()}>{call.muted ? 'Unmute' : 'Mute'}</Button>
         <Button variant="contained" color="error" onClick={call.stop}>End call</Button>
-      </> : (
-        <Button
-          variant="contained"
-          disabled={!agentId || call.loadingDevices || workerStatus !== 'ready'}
-          onClick={() => void call.start(agentId)}
-        >
-          {workerStatus === 'checking'
-            ? 'Checking agent...'
-            : workerStatus === 'warming_up'
-            ? 'Waking up agent...'
-            : call.phase === 'idle'
-            ? 'Start call'
-            : 'Start new call'}
-        </Button>
-      )}
+      </> : <Button variant="contained" disabled={!agentId || call.loadingDevices} onClick={() => void call.start(agentId)}>{call.phase === 'idle' ? 'Start call' : 'Start new call'}</Button>}
       <Button color="inherit" onClick={close}>Close</Button>
     </DialogActions>
   </>
