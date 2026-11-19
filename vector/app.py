@@ -37,8 +37,8 @@ app = FastAPI(
 
 @app.middleware("http")
 async def verify_service_secret(request: Request, call_next):
-    # Allow public health check endpoint
-    if request.url.path == "/health":
+    # Allow public health check endpoints (including Render's root ping)
+    if request.url.path in ["/health", "/"]:
         return await call_next(request)
 
     # In development, allow interactive documentation
@@ -105,6 +105,11 @@ def chunk_text(text: str) -> List[str]:
     if len(cleaned) <= 500:
         return [cleaned]
     return text_splitter.split_text(cleaned)
+
+
+@app.api_route("/", methods=["GET", "HEAD"])
+def root():
+    return {"status": "ok", "service": "vector-service"}
 
 
 @app.get("/health")
