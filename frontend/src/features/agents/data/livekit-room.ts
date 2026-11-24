@@ -2,13 +2,7 @@ import { ConnectionState, ParticipantKind, Room, RoomEvent, Track } from 'liveki
 import { receiveTranscript, type TranscriptMessage } from './call-transcript'
 import type { RoomSignal } from './web-call-controller'
 
-export function createVoiceRoom(signal: (event: RoomSignal) => void, transcript: (message: TranscriptMessage) => void, room = new Room({
-  audioCaptureDefaults: {
-    echoCancellation: true,
-    noiseSuppression: true,
-    autoGainControl: true,
-  },
-})) {
+export function createVoiceRoom(signal: (event: RoomSignal) => void, transcript: (message: TranscriptMessage) => void, room = new Room()) {
   const audio = new Set<HTMLMediaElement>()
   let disposed = false
   let revision = 0
@@ -40,12 +34,7 @@ export function createVoiceRoom(signal: (event: RoomSignal) => void, transcript:
     connect: (url: string, token: string) => room.connect(url, token, { peerConnectionTimeout: 15_000, websocketTimeout: 15_000 }),
     async disconnect() { disposed = true; transcriptAbort.abort(); room.unregisterTextStreamHandler('lk.transcription'); stopMicrophones(); detach(); await room.disconnect(true); stopMicrophones(); detach() },
     async microphone(enabled: boolean, deviceId = 'default') {
-      await room.localParticipant.setMicrophoneEnabled(enabled, {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        deviceId: deviceId === 'default' ? undefined : { exact: deviceId },
-      })
+      await room.localParticipant.setMicrophoneEnabled(enabled, { deviceId: deviceId === 'default' ? undefined : { exact: deviceId } })
       if (disposed) stopMicrophones()
     },
     async selectMicrophone(deviceId: string) {

@@ -16,12 +16,12 @@ export function createLivekitService(env: Environment): VoiceTransport | undefin
   return {
     async dispatch(call) {
       const metadata = JSON.stringify({ version: 1, callId: call.id, roomName: call.roomName })
-      const deployment = env.LIVEKIT_AGENT_DEPLOYMENT ?? (env.NODE_ENV === 'production' ? 'voice-studio-production' : 'voice-studio-local')
-      console.log(`[LiveKit] Dispatching to room "${call.roomName}", agent: "${env.LIVEKIT_AGENT_NAME}", deployment: "${deployment}"`)
+      const deployment = env.LIVEKIT_AGENT_DEPLOYMENT ?? (env.NODE_ENV === 'production' ? undefined : 'voice-studio-local')
+      console.log(`[LiveKit] Dispatching to room "${call.roomName}", agent: "${env.LIVEKIT_AGENT_NAME}"${deployment ? `, deployment: "${deployment}"` : ''}`)
       try {
         const dispatch = await dispatches.createDispatch(call.roomName, env.LIVEKIT_AGENT_NAME, {
           metadata,
-          deployment,
+          ...(deployment ? { deployment } : {}),
         })
         console.log(`[LiveKit] Dispatch created successfully (id: ${dispatch.id})`)
         return dispatch.id
